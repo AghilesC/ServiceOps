@@ -1,0 +1,62 @@
+{
+  "name": "serviceops",
+  "version": "1.0.0",
+  "description": "ServiceOps - Solution de digitalisation pour techniciens sur site par Aghiles CHAOUCHE",
+  "author": "Aghiles CHAOUCHE",
+  "license": "PROPRIETARY",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "vite",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0"
+  },
+  "dependencies": {
+    "framer-motion": "^12.23.24",
+    "lucide-react": "^0.344.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.22.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.56",
+    "@types/react-dom": "^18.2.19",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.17",
+    "eslint": "^8.56.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "vite": "^5.1.0"
+  },
+  "keywords": [
+    "serviceops",
+    "digitalisation",
+    "intervention",
+    "terrain",
+    "technicien",
+    "cvc",
+    "plomberie",
+    "electricite",
+    "automatisation",
+    "bon-de-travail",
+    "signature-electronique"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "private"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "browserslist": [
+    "> 0.2%",
+    "not dead",
+    "not op_mini all"
+  ]
+}
