@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+// App.jsx — ServiceOps (Optimisé + Accessible + Production Ready)
+import React, { useState, useEffect, useRef, useCallback, memo } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -7,6 +8,7 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
+import PropTypes from "prop-types";
 import {
   CheckCircle,
   Clock,
@@ -17,7 +19,6 @@ import {
   FileText,
   Users,
   TrendingUp,
-  Award,
   Lock,
   Menu,
   X,
@@ -26,451 +27,968 @@ import {
   MapPin,
   Zap,
   BarChart3,
-  Settings,
+  Sparkles,
+  Layers,
+  Globe,
+  Smartphone,
+  Sun,
+  Moon,
+  ChevronDown,
+  ArrowRight,
+  AlertTriangle,
 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 
-/* -------- Helpers: Scroll to top + Page transition key ---------- */
+// Hooks & components
+import { useScrollAnimations } from "./hooks/useScrollAnimations";
+import { ScrollReveal } from "./components/ScrollReveal";
+
+/* =========================================
+   CONSTANTES & DONNÉES
+========================================= */
+const ANIMATION_DURATIONS = {
+  FAST: 150,
+  BASE: 300,
+  SLOW: 500,
+};
+
+const BREAKPOINTS = {
+  MOBILE: 640,
+  TABLET: 768,
+  DESKTOP: 1024,
+};
+
+const FEATURES_DATA = [
+  {
+    icon: FileText,
+    title: "Digital Work Orders",
+    desc: "Create and sign work orders electronically. No more lost papers.",
+    color: "blue",
+  },
+  {
+    icon: Send,
+    title: "Real-Time Delivery",
+    desc: "Instant report delivery as soon as technician completes job.",
+    color: "green",
+  },
+  {
+    icon: Database,
+    title: "Equipment Database",
+    desc: "Unified history tracking with photos and serial numbers.",
+    color: "purple",
+  },
+  {
+    icon: Calendar,
+    title: "Smart Scheduling",
+    desc: "Plan and sync your team's operations effortlessly.",
+    color: "orange",
+  },
+  {
+    icon: BarChart3,
+    title: "Analytics Dashboard",
+    desc: "Real-time insights and performance tracking.",
+    color: "pink",
+  },
+  {
+    icon: Lock,
+    title: "Enterprise Security",
+    desc: "End-to-end encryption and compliance guaranteed.",
+    color: "red",
+  },
+];
+
+const PROCESS_STEPS = [
+  {
+    num: "01",
+    icon: FileText,
+    title: "Fill Out",
+    desc: "Complete digital work order on mobile device",
+  },
+  {
+    num: "02",
+    icon: CheckCircle,
+    title: "Sign",
+    desc: "Electronic signature from client",
+  },
+  {
+    num: "03",
+    icon: Send,
+    title: "Send",
+    desc: "Automatic report delivery",
+  },
+  {
+    num: "04",
+    icon: TrendingUp,
+    title: "Invoice",
+    desc: "Automated billing and tracking",
+  },
+];
+
+const BENEFITS_DATA = [
+  { icon: Zap, value: 30, suffix: "%", label: "Productivity", color: "blue" },
+  { icon: Shield, value: 99, suffix: "%", label: "Accuracy", color: "green" },
+  {
+    icon: Database,
+    value: 100,
+    suffix: "%",
+    label: "Tracked",
+    color: "purple",
+  },
+  { icon: Users, value: 24, suffix: "/7", label: "Available", color: "orange" },
+];
+
+const VALUES_DATA = [
+  { icon: Shield, title: "Reliability", desc: "24/7 system you can trust" },
+  { icon: Zap, title: "Simplicity", desc: "Intuitive for everyone" },
+  { icon: Lock, title: "Security", desc: "Data protection first" },
+  { icon: Clock, title: "Real-Time", desc: "Instant updates" },
+];
+
+const CONTACT_INFO = [
+  { icon: Mail, label: "Email", value: "contact@serviceops.ca" },
+  { icon: Phone, label: "Phone", value: "Available on request" },
+  { icon: MapPin, label: "Location", value: "Canada - Nationwide" },
+];
+
+const TRUST_ITEMS = [
+  "24h Response Guaranteed",
+  "Free Demonstration",
+  "Canadian Service",
+  "Dedicated Support",
+];
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^[\d\s\-\+\(\)]+$/;
+
+/* =========================================
+   UTILITIES
+========================================= */
+const useMediaQuery = (query) => {
+  const [matches, setMatches] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    if (media.matches !== matches) setMatches(media.matches);
+
+    const listener = () => setMatches(media.matches);
+    media.addEventListener("change", listener);
+    return () => media.removeEventListener("change", listener);
+  }, [matches, query]);
+
+  return matches;
+};
+
+const usePrefersReducedMotion = () => {
+  return useMediaQuery("(prefers-reduced-motion: reduce)");
+};
+
+/* =========================================
+   ERROR BOUNDARY
+========================================= */
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("Error caught by boundary:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="error-boundary">
+          <div className="error-content">
+            <AlertTriangle size={48} />
+            <h1>Oops! Something went wrong</h1>
+            <p>We apologize for the inconvenience. Please refresh the page.</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="btn btn-primary"
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+ErrorBoundary.propTypes = {
+  children: PropTypes.node.isRequired,
+};
+
+/* =========================================
+   THEME CONTEXT
+========================================= */
+const ThemeContext = React.createContext();
+
+const ThemeProvider = ({ children }) => {
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem("theme");
+    if (saved) return saved;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  }, []);
+
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+};
+
+ThemeProvider.propTypes = {
+  children: PropTypes.node.isRequired,
+};
+
+const useTheme = () => {
+  const ctx = React.useContext(ThemeContext);
+  if (!ctx) throw new Error("useTheme must be used within ThemeProvider");
+  return ctx;
+};
+
+/* =========================================
+   SKIP LINK (Accessibilité)
+========================================= */
+const SkipLink = () => (
+  <a href="#main-content" className="skip-link">
+    Skip to main content
+  </a>
+);
+
+/* =========================================
+   CUSTOM CURSOR (Desktop seulement)
+========================================= */
+const CustomCursor = () => {
+  const cursorRef = useRef(null);
+  const dotRef = useRef(null);
+  const isDesktop = useMediaQuery("(hover: hover) and (pointer: fine)");
+  const prefersReducedMotion = usePrefersReducedMotion();
+
+  useEffect(() => {
+    if (!isDesktop || prefersReducedMotion) return;
+
+    const cursor = cursorRef.current;
+    const dot = dotRef.current;
+    if (!cursor || !dot) return;
+
+    let mouseX = 0,
+      mouseY = 0;
+    let cursorX = 0,
+      cursorY = 0;
+    let rafId = null;
+
+    const move = (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      dot.style.transform = `translate(${mouseX - 4}px, ${mouseY - 4}px)`;
+    };
+
+    const animate = () => {
+      const dx = mouseX - cursorX;
+      const dy = mouseY - cursorY;
+      cursorX += dx * 0.2;
+      cursorY += dy * 0.2;
+      cursor.style.transform = `translate(${cursorX - 20}px, ${
+        cursorY - 20
+      }px)`;
+      rafId = requestAnimationFrame(animate);
+    };
+
+    const handleMouseOver = (e) => {
+      const target = e.target.closest(
+        "a, button, .interactive, input, textarea, select"
+      );
+      if (target) cursor.classList.add("cursor-hover");
+      else cursor.classList.remove("cursor-hover");
+    };
+
+    document.addEventListener("mousemove", move, { passive: true });
+    document.addEventListener("mouseover", handleMouseOver, { passive: true });
+    animate();
+
+    return () => {
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseover", handleMouseOver);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, [isDesktop, prefersReducedMotion]);
+
+  if (!isDesktop || prefersReducedMotion) return null;
+
+  return (
+    <>
+      <div ref={cursorRef} className="cursor-ring" aria-hidden="true" />
+      <div ref={dotRef} className="cursor-dot" aria-hidden="true" />
+    </>
+  );
+};
+
+/* =========================================
+   SCROLL PROGRESS
+========================================= */
+const ScrollProgress = memo(() => {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const onScroll = () => {
+      const scrolled = window.scrollY;
+      const height = document.documentElement.scrollHeight - window.innerHeight;
+      setProgress(height > 0 ? (scrolled / height) * 100 : 0);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  return (
+    <div
+      className="scroll-progress"
+      role="progressbar"
+      aria-valuenow={progress}
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-label="Page scroll progress"
+    >
+      <div className="scroll-progress-fill" style={{ width: `${progress}%` }} />
+    </div>
+  );
+});
+
+ScrollProgress.displayName = "ScrollProgress";
+
+/* =========================================
+   SCROLL TO TOP
+========================================= */
 const ScrollToTop = () => {
   const { pathname } = useLocation();
-  useEffect(() => window.scrollTo(0, 0), [pathname]);
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [pathname]);
   return null;
 };
 
-/* -------- Hook: Intersection Reveal (adds .is-inview) ---------- */
-const useScrollReveal = (rootSelector = "main") => {
-  const rootRef = useRef(null);
+/* =========================================
+   COUNTER (avec Intersection Observer)
+========================================= */
+const Counter = memo(({ end, duration = 2000, suffix = "" }) => {
+  const [count, setCount] = useState(0);
+  const ref = useRef(null);
+  const [started, setStarted] = useState(false);
+  const prefersReducedMotion = usePrefersReducedMotion();
+
   useEffect(() => {
-    const prefersReduced = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
-    if (prefersReduced) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !started) {
+          setStarted(true);
 
-    const root =
-      rootRef.current || document.querySelector(rootSelector) || document.body;
-    const els = root.querySelectorAll("[data-reveal]");
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            e.target.classList.add("is-inview");
-            io.unobserve(e.target);
+          if (prefersReducedMotion) {
+            setCount(end);
+            return;
           }
-        });
-      },
-      { rootMargin: "0px 0px -10% 0px", threshold: 0.1 }
-    );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, [rootSelector]);
 
-  return rootRef;
+          let current = 0;
+          const step = end / (duration / 16);
+          const timer = setInterval(() => {
+            current += step;
+            if (current >= end) {
+              setCount(end);
+              clearInterval(timer);
+            } else {
+              setCount(Math.ceil(current));
+            }
+          }, 16);
+
+          return () => clearInterval(timer);
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, [end, duration, started, prefersReducedMotion]);
+
+  return (
+    <span ref={ref} aria-label={`${end}${suffix}`}>
+      {count}
+      {suffix}
+    </span>
+  );
+});
+
+Counter.propTypes = {
+  end: PropTypes.number.isRequired,
+  duration: PropTypes.number,
+  suffix: PropTypes.string,
 };
 
-/* ------------------------- Home -------------------------- */
+Counter.displayName = "Counter";
+
+/* =========================================
+   MAGNETIC BUTTON
+========================================= */
+const MagneticButton = memo(
+  ({ children, onClick, className = "", type = "button", ariaLabel }) => {
+    const btnRef = useRef(null);
+    const isDesktop = useMediaQuery("(hover: hover) and (pointer: fine)");
+    const prefersReducedMotion = usePrefersReducedMotion();
+
+    useEffect(() => {
+      if (!isDesktop || prefersReducedMotion) return;
+
+      const btn = btnRef.current;
+      if (!btn) return;
+
+      const onMove = (e) => {
+        const r = btn.getBoundingClientRect();
+        const x = e.clientX - r.left - r.width / 2;
+        const y = e.clientY - r.top - r.height / 2;
+        btn.style.transform = `translate(${x * 0.2}px, ${y * 0.2}px)`;
+      };
+
+      const onLeave = () => (btn.style.transform = "translate(0,0)");
+
+      btn.addEventListener("mousemove", onMove);
+      btn.addEventListener("mouseleave", onLeave);
+
+      return () => {
+        btn.removeEventListener("mousemove", onMove);
+        btn.removeEventListener("mouseleave", onLeave);
+      };
+    }, [isDesktop, prefersReducedMotion]);
+
+    return (
+      <button
+        ref={btnRef}
+        type={type}
+        onClick={onClick}
+        className={`btn-magnetic ${className}`}
+        aria-label={ariaLabel}
+      >
+        {children}
+      </button>
+    );
+  }
+);
+
+MagneticButton.propTypes = {
+  children: PropTypes.node.isRequired,
+  onClick: PropTypes.func,
+  className: PropTypes.string,
+  type: PropTypes.string,
+  ariaLabel: PropTypes.string,
+};
+
+MagneticButton.displayName = "MagneticButton";
+
+/* =========================================
+   TILT CARD
+========================================= */
+const TiltCard = memo(({ children, className = "" }) => {
+  const cardRef = useRef(null);
+  const isDesktop = useMediaQuery("(hover: hover) and (pointer: fine)");
+  const prefersReducedMotion = usePrefersReducedMotion();
+
+  useEffect(() => {
+    if (!isDesktop || prefersReducedMotion) return;
+
+    const card = cardRef.current;
+    if (!card) return;
+
+    const onMove = (e) => {
+      const r = card.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+      const cx = r.width / 2;
+      const cy = r.height / 2;
+      const rx = ((y - cy) / cy) * -5;
+      const ry = ((x - cx) / cx) * 5;
+      card.style.transform = `perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg) scale3d(1.02,1.02,1.02)`;
+    };
+
+    const onLeave = () =>
+      (card.style.transform =
+        "perspective(1000px) rotateX(0) rotateY(0) scale3d(1,1,1)");
+
+    card.addEventListener("mousemove", onMove);
+    card.addEventListener("mouseleave", onLeave);
+
+    return () => {
+      card.removeEventListener("mousemove", onMove);
+      card.removeEventListener("mouseleave", onLeave);
+    };
+  }, [isDesktop, prefersReducedMotion]);
+
+  return (
+    <div ref={cardRef} className={`tilt-card ${className}`}>
+      {children}
+    </div>
+  );
+});
+
+TiltCard.propTypes = {
+  children: PropTypes.node.isRequired,
+  className: PropTypes.string,
+};
+
+TiltCard.displayName = "TiltCard";
+
+/* =========================================
+   NAVIGATION
+========================================= */
+const Navigation = memo(() => {
+  const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
+  const menuRef = useRef(null);
+
+  useEffect(() => setOpen(false), [location.pathname]);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 50);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handleEscape = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [open]);
+
+  return (
+    <nav
+      className={`navbar ${scrolled ? "scrolled" : ""}`}
+      role="navigation"
+      aria-label="Main navigation"
+    >
+      <div className="container">
+        <div className="navbar-content" ref={menuRef}>
+          <Link
+            to="/"
+            className="navbar-brand interactive"
+            aria-label="ServiceOps Home"
+          >
+            <div className="brand-icon" aria-hidden="true">
+              <Layers />
+            </div>
+            <span className="brand-text">ServiceOps</span>
+          </Link>
+
+          <div className={`navbar-menu ${open ? "open" : ""}`} role="menu">
+            <Link
+              to="/"
+              className={`nav-link interactive ${
+                location.pathname === "/" ? "active" : ""
+              }`}
+              role="menuitem"
+              aria-current={location.pathname === "/" ? "page" : undefined}
+            >
+              Home
+            </Link>
+            <Link
+              to="/about"
+              className={`nav-link interactive ${
+                location.pathname === "/about" ? "active" : ""
+              }`}
+              role="menuitem"
+              aria-current={location.pathname === "/about" ? "page" : undefined}
+            >
+              About
+            </Link>
+            <Link
+              to="/contact"
+              className={`nav-link interactive ${
+                location.pathname === "/contact" ? "active" : ""
+              }`}
+              role="menuitem"
+              aria-current={
+                location.pathname === "/contact" ? "page" : undefined
+              }
+            >
+              Contact
+            </Link>
+          </div>
+
+          <div className="navbar-actions">
+            <button
+              onClick={toggleTheme}
+              className="theme-toggle interactive"
+              aria-label={`Switch to ${
+                theme === "dark" ? "light" : "dark"
+              } mode`}
+              aria-pressed={theme === "dark"}
+            >
+              {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+            <button
+              className="mobile-toggle"
+              onClick={() => setOpen(!open)}
+              aria-label={open ? "Close menu" : "Open menu"}
+              aria-expanded={open}
+              aria-controls="navbar-menu"
+            >
+              {open ? <X /> : <Menu />}
+            </button>
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
+});
+
+Navigation.displayName = "Navigation";
+
+/* =========================================
+   HOME PAGE
+========================================= */
 const HomePage = () => {
   const navigate = useNavigate();
-
-  const scrollToContact = () => {
-    navigate("/contact");
-  };
-
-  // Parallaxe douce du Hero
-  useEffect(() => {
-    const prefersReduced = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
-    if (prefersReduced) return;
-    const onMove = (e) => {
-      const cX = (e.clientX / window.innerWidth - 0.5) * 2;
-      const cY = (e.clientY / window.innerHeight - 0.5) * 2;
-      document.documentElement.style.setProperty("--parallax-x", `${cX}`);
-      document.documentElement.style.setProperty("--parallax-y", `${cY}`);
-    };
-    window.addEventListener("pointermove", onMove);
-    return () => window.removeEventListener("pointermove", onMove);
-  }, []);
+  useScrollAnimations();
 
   return (
     <>
       {/* HERO */}
-      <section className="hero-section">
-        {/* gradient orbs */}
-        <div className="hero-orb orb-1" aria-hidden="true" />
-        <div className="hero-orb orb-2" aria-hidden="true" />
-        <div className="hero-grid" aria-hidden="true" />
+      <section className="hero" aria-labelledby="hero-title">
+        <div className="hero-bg" aria-hidden="true">
+          <div className="gradient-orb orb-1" />
+          <div className="gradient-orb orb-2" />
+          <div className="gradient-orb orb-3" />
+        </div>
+
         <div className="container">
-          <div className="hero-content" data-reveal="fade-up">
-            <h1 className="hero-title">
-              Dites adieu au papier.
-              <span className="hero-subtitle">
-                Simplifiez vos interventions.
-              </span>
-            </h1>
-            <p className="hero-description">
-              Transformez vos bons de travail papier en rapports numériques
-              signés et envoyés automatiquement. Une solution complète pour les
-              techniciens sur site : CVC, plomberie, électricité.
-            </p>
-            <div className="hero-buttons" data-reveal="fade-up">
-              <button
-                onClick={scrollToContact}
-                className="btn btn-primary btn-magnetic"
+          <div className="hero-grid">
+            <div className="hero-content">
+              <ScrollReveal delay={0}>
+                <div className="hero-badge">
+                  <Sparkles size={16} aria-hidden="true" />
+                  <span>Next-Gen Field Management Platform</span>
+                </div>
+              </ScrollReveal>
+
+              <ScrollReveal delay={0.1}>
+                <h1 id="hero-title" className="hero-title">
+                  Say Goodbye to{" "}
+                  <span className="gradient-text">Paperwork</span>
+                </h1>
+              </ScrollReveal>
+
+              <ScrollReveal delay={0.2}>
+                <p className="hero-description">
+                  Transform paper work orders into digital reports with
+                  electronic signatures, sent automatically. Complete solution
+                  for field technicians: HVAC, plumbing, electrical.
+                </p>
+              </ScrollReveal>
+
+              <ScrollReveal type="scale" delay={0.3}>
+                <div className="hero-cta">
+                  <MagneticButton
+                    onClick={() => navigate("/contact")}
+                    className="btn btn-primary interactive"
+                    ariaLabel="Request a demo"
+                  >
+                    <Send size={20} aria-hidden="true" />
+                    <span>Request Demo</span>
+                    <ArrowRight size={18} aria-hidden="true" />
+                  </MagneticButton>
+
+                  <MagneticButton
+                    onClick={() => navigate("/contact")}
+                    className="btn btn-secondary interactive"
+                    ariaLabel="Talk to us"
+                  >
+                    <Phone size={20} aria-hidden="true" />
+                    <span>Talk to Us</span>
+                  </MagneticButton>
+                </div>
+              </ScrollReveal>
+
+              <ScrollReveal delay={0.4}>
+                <div className="hero-stats" role="list">
+                  <div className="stat" role="listitem">
+                    <div className="stat-value">
+                      <Counter end={100} suffix="%" />
+                    </div>
+                    <div className="stat-label">Privacy Compliant</div>
+                  </div>
+                  <div className="stat" role="listitem">
+                    <div className="stat-value">
+                      <Counter end={24} suffix="/7" />
+                    </div>
+                    <div className="stat-label">Available</div>
+                  </div>
+                  <div className="stat" role="listitem">
+                    <div className="stat-value">
+                      <Counter end={99} suffix=".9%" />
+                    </div>
+                    <div className="stat-label">Uptime</div>
+                  </div>
+                </div>
+              </ScrollReveal>
+            </div>
+
+            <ScrollReveal type="scale" delay={0.2} className="hero-visual">
+              <div
+                className="phone-mockup"
+                role="img"
+                aria-label="Mobile application mockup"
               >
-                <span className="btn-ink" />
-                <Send className="icon-sm" />
-                Demander une démo
-              </button>
-              <button
-                onClick={scrollToContact}
-                className="btn btn-secondary btn-ghost"
+                <div className="phone-frame">
+                  <div className="phone-screen">
+                    <Smartphone className="phone-icon" aria-hidden="true" />
+                    <div className="phone-glow" aria-hidden="true" />
+                  </div>
+                </div>
+              </div>
+            </ScrollReveal>
+          </div>
+        </div>
+
+        <div className="scroll-indicator" aria-hidden="true">
+          <ChevronDown className="scroll-icon" />
+        </div>
+      </section>
+
+      {/* FEATURES */}
+      <section
+        className="section features-section"
+        aria-labelledby="features-title"
+      >
+        <div className="container">
+          <ScrollReveal>
+            <div className="section-header">
+              <h2 id="features-title" className="section-title">
+                Key Features
+              </h2>
+              <p className="section-subtitle">
+                Everything you need to manage field operations
+              </p>
+            </div>
+          </ScrollReveal>
+
+          <div className="features-grid" role="list">
+            {FEATURES_DATA.map((f, i) => (
+              <ScrollReveal key={i} type="scale" delay={i * 0.05}>
+                <TiltCard
+                  className={`feature-card color-${f.color}`}
+                  role="listitem"
+                >
+                  <div className="feature-icon" aria-hidden="true">
+                    <f.icon />
+                  </div>
+                  <h3>{f.title}</h3>
+                  <p>{f.desc}</p>
+                  <div className="feature-glow" aria-hidden="true" />
+                </TiltCard>
+              </ScrollReveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* PROCESS */}
+      <section
+        className="section process-section"
+        aria-labelledby="process-title"
+      >
+        <div className="container">
+          <ScrollReveal>
+            <div className="section-header">
+              <h2 id="process-title" className="section-title">
+                How It Works
+              </h2>
+              <p className="section-subtitle">Simple 4-step process</p>
+            </div>
+          </ScrollReveal>
+
+          <div className="process-grid" role="list">
+            {PROCESS_STEPS.map((s, i) => (
+              <ScrollReveal key={i} delay={i * 0.1}>
+                <div className="process-card" role="listitem">
+                  <div className="process-number" aria-hidden="true">
+                    {s.num}
+                  </div>
+                  <div className="process-icon" aria-hidden="true">
+                    <s.icon />
+                  </div>
+                  <h3>{s.title}</h3>
+                  <p>{s.desc}</p>
+                </div>
+              </ScrollReveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* BENEFITS */}
+      <section
+        className="section benefits-section"
+        aria-labelledby="benefits-title"
+      >
+        <div className="container">
+          <ScrollReveal>
+            <div className="section-header">
+              <h2 id="benefits-title" className="section-title">
+                Business Benefits
+              </h2>
+              <p className="section-subtitle">Transform your operations</p>
+            </div>
+          </ScrollReveal>
+
+          <div className="benefits-grid" role="list">
+            {BENEFITS_DATA.map((b, i) => (
+              <ScrollReveal key={i} type="scale" delay={i * 0.1}>
+                <TiltCard
+                  className={`benefit-card gradient-${b.color}`}
+                  role="listitem"
+                >
+                  <b.icon className="benefit-icon" aria-hidden="true" />
+                  <div className="benefit-value">
+                    <Counter end={b.value} suffix={b.suffix} />
+                  </div>
+                  <div className="benefit-label">{b.label}</div>
+                </TiltCard>
+              </ScrollReveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="section cta-section" aria-labelledby="cta-title">
+        <div className="container">
+          <ScrollReveal type="scale">
+            <TiltCard className="cta-card">
+              <Globe className="cta-icon" aria-hidden="true" />
+              <h2 id="cta-title">Ready to Transform Your Business?</h2>
+              <p>Join companies revolutionizing their field operations</p>
+              <MagneticButton
+                onClick={() => navigate("/contact")}
+                className="btn btn-primary interactive"
+                ariaLabel="Schedule a free demo"
               >
-                <Phone className="icon-sm" />
-                Parler à Aghiles
-              </button>
-            </div>
-            <div className="hero-badges" data-reveal="fade-up">
-              <div className="badge glass">
-                <CheckCircle className="icon-xs" />
-                <span>100% RGPD</span>
-              </div>
-              <div className="badge glass">
-                <Shield className="icon-xs" />
-                <span>Données sécurisées</span>
-              </div>
-              <div className="badge glass">
-                <Clock className="icon-xs" />
-                <span>Disponible 24/7</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Comment ça marche */}
-      <section className="section bg-light">
-        <div className="container">
-          <h2 className="section-title" data-reveal="fade-up">
-            Comment ça marche
-          </h2>
-          <p className="section-subtitle" data-reveal="fade-up">
-            Un processus simple en 4 étapes pour digitaliser vos interventions
-          </p>
-          <div className="process-grid">
-            <div className="process-step tilt" data-reveal="fade-up">
-              <div className="process-number">1</div>
-              <FileText className="process-icon" />
-              <h3>Remplir</h3>
-              <p>
-                Le technicien complète le bon de travail numérique sur tablette
-                ou smartphone
-              </p>
-            </div>
-            <div className="process-step tilt" data-reveal="fade-up">
-              <div className="process-number">2</div>
-              <CheckCircle className="process-icon" />
-              <h3>Signer</h3>
-              <p>
-                Signature électronique du client directement sur l'appareil
-                mobile
-              </p>
-            </div>
-            <div className="process-step tilt" data-reveal="fade-up">
-              <div className="process-number">3</div>
-              <Send className="process-icon" />
-              <h3>Envoyer</h3>
-              <p>
-                Envoi automatique du rapport au client et à votre base de
-                données
-              </p>
-            </div>
-            <div className="process-step tilt" data-reveal="fade-up">
-              <div className="process-number">4</div>
-              <TrendingUp className="process-icon" />
-              <h3>Facturer</h3>
-              <p>Génération automatique des factures et suivi des paiements</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Fonctionnalités */}
-      <section className="section">
-        <div className="container">
-          <h2 className="section-title" data-reveal="fade-up">
-            Fonctionnalités clés
-          </h2>
-          <p className="section-subtitle" data-reveal="fade-up">
-            Tout ce dont vous avez besoin pour gérer vos interventions terrain
-          </p>
-          <div className="features-grid">
-            <div className="feature-card hover-lift" data-reveal="fade-up">
-              <div className="feature-icon-wrapper">
-                <FileText className="feature-icon" />
-              </div>
-              <h3>Bons de travail signés</h3>
-              <p>
-                Créez et faites signer vos bons de travail électroniquement.
-                Fini les papiers perdus ou illisibles.
-              </p>
-            </div>
-            <div className="feature-card hover-lift" data-reveal="fade-up">
-              <div className="feature-icon-wrapper">
-                <Send className="feature-icon" />
-              </div>
-              <h3>Envoi automatique temps réel</h3>
-              <p>
-                Recevez vos bons de travail signés en temps réel, dès que le
-                technicien a terminé.
-              </p>
-            </div>
-            <div className="feature-card hover-lift" data-reveal="fade-up">
-              <div className="feature-icon-wrapper">
-                <Database className="feature-icon" />
-              </div>
-              <h3>Base d'équipements</h3>
-              <p>
-                Base d'équipements unifiée : historique, numéros de série,
-                interventions, photos.
-              </p>
-            </div>
-            <div className="feature-card hover-lift" data-reveal="fade-up">
-              <div className="feature-icon-wrapper">
-                <Calendar className="feature-icon" />
-              </div>
-              <h3>Calendrier intelligent</h3>
-              <p>
-                Planifiez vos techniciens et synchronisez vos opérations en un
-                clin d'œil.
-              </p>
-            </div>
-            <div className="feature-card hover-lift" data-reveal="fade-up">
-              <div className="feature-icon-wrapper">
-                <BarChart3 className="feature-icon" />
-              </div>
-              <h3>Historique centralisé</h3>
-              <p>
-                Accédez à l'historique complet de chaque client et équipement en
-                quelques clics.
-              </p>
-            </div>
-            <div className="feature-card hover-lift" data-reveal="fade-up">
-              <div className="feature-icon-wrapper">
-                <Lock className="feature-icon" />
-              </div>
-              <h3>Sécurité renforcée</h3>
-              <p>
-                Données chiffrées et sauvegardées automatiquement. Conformité
-                RGPD garantie.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Bénéfices */}
-      <section className="section bg-gradient">
-        <div className="container">
-          <h2 className="section-title text-white" data-reveal="fade-up">
-            Les bénéfices pour votre entreprise
-          </h2>
-          <p className="section-subtitle text-white-80" data-reveal="fade-up">
-            Transformez votre façon de travailler et boostez votre productivité
-          </p>
-          <div className="benefits-grid">
-            <div className="benefit-card stat-card" data-reveal="fade-up">
-              <Zap className="benefit-icon" />
-              <h3>Gain de temps</h3>
-              <p>Économisez 2h par jour en moyenne sur l'administratif</p>
-              <div className="benefit-stat">+30%</div>
-              <span className="benefit-label">de productivité</span>
-            </div>
-            <div className="benefit-card stat-card" data-reveal="fade-up">
-              <Shield className="benefit-icon" />
-              <h3>Zéro erreur</h3>
-              <p>Éliminez les erreurs de saisie et les oublis</p>
-              <div className="benefit-stat">99%</div>
-              <span className="benefit-label">de fiabilité</span>
-            </div>
-            <div className="benefit-card stat-card" data-reveal="fade-up">
-              <Database className="benefit-icon" />
-              <h3>Traçabilité totale</h3>
-              <p>Retrouvez n'importe quelle intervention en 5 secondes</p>
-              <div className="benefit-stat">100%</div>
-              <span className="benefit-label">traçable</span>
-            </div>
-            <div className="benefit-card stat-card" data-reveal="fade-up">
-              <Users className="benefit-icon" />
-              <h3>Visibilité équipe</h3>
-              <p>Suivez vos techniciens en temps réel</p>
-              <div className="benefit-stat">24/7</div>
-              <span className="benefit-label">disponible</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Trust + CTA */}
-      <section className="section">
-        <div className="container">
-          <h2 className="section-title" data-reveal="fade-up">
-            Ils nous font confiance
-          </h2>
-          <p className="section-subtitle" data-reveal="fade-up">
-            Une solution éprouvée et certifiée pour votre tranquillité d'esprit
-          </p>
-          <div className="trust-grid">
-            <div className="trust-card" data-reveal="fade-up">
-              <Award className="trust-icon" />
-              <h4>Qualité garantie</h4>
-              <p>
-                Solution développée selon les standards les plus élevés de
-                l'industrie
-              </p>
-            </div>
-            <div className="trust-card" data-reveal="fade-up">
-              <Lock className="trust-icon" />
-              <h4>RGPD Compliant</h4>
-              <p>Protection totale de vos données et celles de vos clients</p>
-            </div>
-            <div className="trust-card" data-reveal="fade-up">
-              <Clock className="trust-icon" />
-              <h4>Disponibilité 99.9%</h4>
-              <p>Service accessible 24/7 avec une infrastructure redondante</p>
-            </div>
-            <div className="trust-card" data-reveal="fade-up">
-              <Settings className="trust-icon" />
-              <h4>Support dédié</h4>
-              <p>Accompagnement personnalisé pour votre réussite</p>
-            </div>
-          </div>
-          <div className="cta-section glass" data-reveal="fade-up">
-            <h3>Prêt à transformer votre activité ?</h3>
-            <p>
-              Découvrez comment ServiceOps peut révolutionner votre gestion des
-              interventions
-            </p>
-            <button
-              onClick={scrollToContact}
-              className="btn btn-primary btn-lg btn-magnetic"
-            >
-              <span className="btn-ink" />
-              <Calendar className="icon-sm" />
-              Planifier une démo gratuite
-            </button>
-          </div>
+                <Calendar size={20} aria-hidden="true" />
+                <span>Schedule Free Demo</span>
+                <ArrowRight size={18} aria-hidden="true" />
+              </MagneticButton>
+            </TiltCard>
+          </ScrollReveal>
         </div>
       </section>
     </>
   );
 };
 
-/* ------------------------- About -------------------------- */
+/* =========================================
+   ABOUT PAGE
+========================================= */
 const AboutPage = () => {
+  useScrollAnimations();
+
   return (
-    <div className="page-container">
-      <section className="section">
+    <div className="page-wrapper">
+      <section className="section about-section" aria-labelledby="about-title">
         <div className="container">
-          <h1 className="page-title" data-reveal="fade-up">
-            À propos de ServiceOps
-          </h1>
-
-          <div className="about-content">
-            <div className="about-section" data-reveal="fade-up">
-              <h2>Qui suis-je ?</h2>
-              <p className="lead">
-                Je suis <strong>Aghiles CHAOUCHE</strong>, auto-entrepreneur et
-                créateur de ServiceOps.
-              </p>
-              <p>
-                Fort d'une expérience significative dans la digitalisation des
-                processus métiers, j'ai constaté que de nombreux techniciens sur
-                le terrain perdent un temps précieux avec la paperasse. C'est
-                pourquoi j'ai développé ServiceOps : une solution complète pour
-                transformer et automatiser la gestion des interventions terrain.
-              </p>
-              <p className="highlight-box">
-                <strong>Note importante :</strong> Ce site m'appartient en tant
-                qu'auto-entrepreneur. Je suis personnellement responsable de la
-                qualité du service et de la protection de vos données.
+          <ScrollReveal>
+            <div className="section-header">
+              <h1 id="about-title" className="page-title">
+                About ServiceOps
+              </h1>
+              <p className="page-subtitle">
+                Building the future of field operations
               </p>
             </div>
+          </ScrollReveal>
 
-            <div className="about-section" data-reveal="fade-up">
-              <h2>Notre Vision</h2>
-              <p>
-                Digitaliser complètement les opérations terrain pour que les
-                techniciens se concentrent sur l'essentiel : servir leurs
-                clients avec excellence.
-              </p>
-            </div>
-
-            <div className="about-section" data-reveal="fade-up">
-              <h2>Notre Mission</h2>
-              <p>
-                Fournir aux entreprises de services techniques (CVC, plomberie,
-                électricité) une plateforme simple, fiable et sécurisée pour
-                gérer leurs interventions, leurs équipements et leurs clients en
-                temps réel.
-              </p>
-            </div>
-
-            <div className="about-section" data-reveal="fade-up">
-              <h2>Nos Valeurs</h2>
-              <div className="values-grid">
-                <div className="value-card">
-                  <Shield className="value-icon" />
-                  <h3>Fiabilité</h3>
-                  <p>Un système sur lequel vous pouvez compter 24/7</p>
-                </div>
-                <div className="value-card">
-                  <Zap className="value-icon" />
-                  <h3>Simplicité</h3>
-                  <p>Une interface intuitive que tout le monde peut utiliser</p>
-                </div>
-                <div className="value-card">
-                  <Lock className="value-icon" />
-                  <h3>Sécurité</h3>
-                  <p>
-                    Vos données sont protégées selon les normes les plus
-                    strictes
-                  </p>
-                </div>
-                <div className="value-card">
-                  <Clock className="value-icon" />
-                  <h3>Temps réel</h3>
-                  <p>
-                    Des informations instantanées pour des décisions éclairées
-                  </p>
-                </div>
+          <ScrollReveal type="scale">
+            <TiltCard className="about-hero">
+              <div className="about-avatar" aria-hidden="true">
+                <Users size={48} />
               </div>
-            </div>
+              <h2>Aghiles CHAOUCHE</h2>
+              <p className="about-role">ServiceOps Creator</p>
+              <p className="about-intro">
+                Self-employed entrepreneur passionate about digitizing business
+                processes. I created ServiceOps to simplify life for field
+                technicians across Canada.
+              </p>
+            </TiltCard>
+          </ScrollReveal>
 
-            <div className="about-section" data-reveal="fade-up">
-              <h2>Responsabilités légales</h2>
-              <p>
-                En tant qu'auto-entrepreneur, je suis personnellement engagé
-                dans la réussite de votre projet de digitalisation. ServiceOps
-                est une marque déposée appartenant à Aghiles CHAOUCHE,
-                auto-entrepreneur immatriculé en France.
-              </p>
-              <p>
-                Je m'engage à respecter l'ensemble de la réglementation en
-                vigueur, notamment en matière de protection des données
-                personnelles (RGPD) et de sécurité informatique.
-              </p>
-            </div>
+          <div className="about-grid">
+            {[
+              {
+                title: "Our Vision",
+                content:
+                  "Fully digitize field operations so technicians can focus on serving clients with excellence.",
+              },
+              {
+                title: "Our Mission",
+                content:
+                  "Provide technical service companies with a simple, reliable, secure platform for real-time field operations management.",
+              },
+            ].map((item, idx) => (
+              <ScrollReveal key={idx} delay={idx * 0.1}>
+                <TiltCard className="about-card">
+                  <h3>{item.title}</h3>
+                  <p>{item.content}</p>
+                </TiltCard>
+              </ScrollReveal>
+            ))}
+          </div>
 
-            <div className="cta-section glass" data-reveal="fade-up">
-              <h3>Envie d'en savoir plus ?</h3>
-              <p>
-                Discutons de vos besoins et voyons comment ServiceOps peut vous
-                aider
-              </p>
-              <Link to="/contact" className="btn btn-primary btn-lg">
-                <Mail className="icon-sm" />
-                Me contacter directement
-              </Link>
-            </div>
+          <div className="values-grid" role="list">
+            {VALUES_DATA.map((value, idx) => (
+              <ScrollReveal key={idx} type="scale" delay={idx * 0.1}>
+                <TiltCard className="value-card" role="listitem">
+                  <value.icon className="value-icon" aria-hidden="true" />
+                  <h4>{value.title}</h4>
+                  <p>{value.desc}</p>
+                </TiltCard>
+              </ScrollReveal>
+            ))}
           </div>
         </div>
       </section>
@@ -478,8 +996,12 @@ const AboutPage = () => {
   );
 };
 
-/* ------------------------- Contact -------------------------- */
+/* =========================================
+   CONTACT PAGE (anti-refresh)
+========================================= */
 const ContactPage = () => {
+  useScrollAnimations();
+
   const [formData, setFormData] = useState({
     name: "",
     company: "",
@@ -490,261 +1012,370 @@ const ContactPage = () => {
     requestDemo: false,
     acceptContact: false,
   });
+  const [status, setStatus] = useState({ type: "", message: "" });
+  const [errors, setErrors] = useState({});
 
-  const [formStatus, setFormStatus] = useState({ type: "", message: "" });
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.acceptContact) {
-      setFormStatus({
-        type: "error",
-        message: "Veuillez accepter d'être contacté pour continuer.",
-      });
-      return;
+  // --- VALIDATION ---
+  const validateField = (name, value) => {
+    switch (name) {
+      case "email":
+        return EMAIL_REGEX.test(value) ? "" : "Invalid email format";
+      case "phone":
+        return PHONE_REGEX.test(value) ? "" : "Invalid phone format";
+      case "name":
+      case "company":
+        return value.trim().length >= 2 ? "" : "Must be at least 2 characters";
+      default:
+        return "";
     }
-    setFormStatus({ type: "loading", message: "Envoi en cours..." });
-    setTimeout(() => {
-      setFormStatus({
-        type: "success",
-        message:
-          "Merci pour votre message ! Aghiles vous contactera dans les 24 heures.",
-      });
-      setFormData({
-        name: "",
-        company: "",
-        email: "",
-        phone: "",
-        sector: "",
-        message: "",
-        requestDemo: false,
-        acceptContact: false,
-      });
-    }, 1200);
   };
+
+  // --- HANDLERS ---
+  const handleChange = useCallback((e) => {
+    const { name, value, type, checked } = e.target;
+    const newValue = type === "checkbox" ? checked : value;
+
+    setFormData((prev) => ({ ...prev, [name]: newValue }));
+
+    if (type !== "checkbox" && value) {
+      const error = validateField(name, value);
+      setErrors((prev) => ({ ...prev, [name]: error }));
+    }
+  }, []);
+
+  // Empêche Enter de soumettre (sauf textarea)
+  const blockEnterSubmit = useCallback((e) => {
+    if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") {
+      e.preventDefault();
+    }
+  }, []);
+
+  // Garde-fou: empêche toute navigation via liens # dans la carte
+  const stopHashLinkNav = useCallback((e) => {
+    const a = e.target.closest("a");
+    if (a && a.getAttribute("href") === "#") {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, []);
+
+  const handleSubmit = useCallback(
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const newErrors = {};
+      Object.keys(formData).forEach((key) => {
+        if (
+          key === "requestDemo" ||
+          key === "acceptContact" ||
+          key === "message"
+        )
+          return;
+        const err = validateField(key, formData[key]);
+        if (err) newErrors[key] = err;
+      });
+
+      if (!formData.acceptContact) {
+        setStatus({ type: "error", message: "Please accept to be contacted." });
+        return;
+      }
+
+      if (Object.keys(newErrors).length > 0) {
+        setErrors(newErrors);
+        setStatus({ type: "error", message: "Please fix the errors above." });
+        return;
+      }
+
+      setStatus({ type: "loading", message: "Sending..." });
+
+      // Simulation d'appel API — remplace par fetch/axios si besoin
+      setTimeout(() => {
+        setStatus({
+          type: "success",
+          message: "Thank you! We'll contact you within 24 hours.",
+        });
+        setFormData({
+          name: "",
+          company: "",
+          email: "",
+          phone: "",
+          sector: "",
+          message: "",
+          requestDemo: false,
+          acceptContact: false,
+        });
+        setErrors({});
+      }, 1000);
+    },
+    [formData]
+  );
 
   return (
-    <div className="page-container">
-      <section className="section">
+    <div className="page-wrapper">
+      <section
+        className="section contact-section"
+        aria-labelledby="contact-title"
+      >
         <div className="container">
-          <h1 className="page-title" data-reveal="fade-up">
-            Contactez-nous
-          </h1>
-          <p className="page-subtitle" data-reveal="fade-up">
-            Prêt à digitaliser vos interventions ? Parlons de votre projet !
-          </p>
-
-          <div className="contact-content">
-            <div className="contact-info glass" data-reveal="fade-up">
-              <h2>Parlons de votre projet</h2>
-              <p>
-                Que vous soyez une petite entreprise ou un grand groupe,
-                ServiceOps s'adapte à vos besoins. Contactez-moi pour une
-                démonstration personnalisée.
-              </p>
-
-              <div className="contact-details">
-                <div className="contact-item">
-                  <Mail className="contact-icon" />
-                  <div>
-                    <h4>Email</h4>
-                    <p>contact@serviceops.fr</p>
-                  </div>
-                </div>
-                <div className="contact-item">
-                  <Phone className="contact-icon" />
-                  <div>
-                    <h4>Téléphone</h4>
-                    <p>Sur demande après premier contact</p>
-                  </div>
-                </div>
-                <div className="contact-item">
-                  <MapPin className="contact-icon" />
-                  <div>
-                    <h4>Localisation</h4>
-                    <p>France - Service disponible partout</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="trust-section">
-                <h3>Pourquoi nous choisir ?</h3>
-                <ul className="trust-list">
-                  <li>
-                    <CheckCircle className="icon-xs" />
-                    Réponse sous 24h garantie
-                  </li>
-                  <li>
-                    <CheckCircle className="icon-xs" />
-                    Démonstration gratuite et sans engagement
-                  </li>
-                  <li>
-                    <CheckCircle className="icon-xs" />
-                    Accompagnement personnalisé
-                  </li>
-                  <li>
-                    <CheckCircle className="icon-xs" />
-                    Solution 100% française
-                  </li>
-                </ul>
-              </div>
+          <ScrollReveal>
+            <div className="section-header">
+              <h1 id="contact-title" className="page-title">
+                Get In Touch
+              </h1>
+              <p className="page-subtitle">Let's discuss your project</p>
             </div>
+          </ScrollReveal>
 
-            <div
-              className="contact-form-wrapper hover-lift"
-              data-reveal="fade-up"
-            >
-              <form onSubmit={handleSubmit} className="contact-form">
-                <div className="form-group">
-                  <label htmlFor="name">Nom complet *</label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                    placeholder="Jean Dupont"
-                    className="form-input"
-                  />
+          <div className="contact-grid">
+            <ScrollReveal delay={0.1}>
+              <TiltCard className="contact-info">
+                <h2>Contact Information</h2>
+                <p>Reach out for a personalized demo of ServiceOps.</p>
+
+                <div className="contact-details">
+                  {CONTACT_INFO.map((item, idx) => (
+                    <div key={idx} className="contact-item">
+                      <item.icon className="contact-icon" aria-hidden="true" />
+                      <div>
+                        <h4>{item.label}</h4>
+                        <p>{item.value}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="company">Entreprise *</label>
-                  <input
-                    type="text"
-                    id="company"
-                    name="company"
-                    value={formData.company}
-                    onChange={handleChange}
-                    required
-                    placeholder="Nom de votre société"
-                    className="form-input"
-                  />
+                <div className="trust-list" role="list">
+                  {TRUST_ITEMS.map((item, idx) => (
+                    <div key={idx} className="trust-item" role="listitem">
+                      <CheckCircle size={16} aria-hidden="true" />
+                      <span>{item}</span>
+                    </div>
+                  ))}
                 </div>
+              </TiltCard>
+            </ScrollReveal>
 
-                <div className="form-group">
-                  <label htmlFor="email">Email professionnel *</label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    placeholder="jean.dupont@entreprise.fr"
-                    className="form-input"
-                  />
-                </div>
+            <ScrollReveal type="scale" delay={0.2}>
+              <TiltCard className="contact-form-card" onClick={stopHashLinkNav}>
+                <form
+                  className="contact-form"
+                  noValidate
+                  onSubmit={handleSubmit}
+                  onKeyDown={blockEnterSubmit}
+                >
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="name">Full Name *</label>
+                      <input
+                        id="name"
+                        type="text"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleChange}
+                        required
+                        placeholder="John Doe"
+                        aria-invalid={errors.name ? "true" : "false"}
+                        aria-describedby={
+                          errors.name ? "name-error" : undefined
+                        }
+                      />
+                      {errors.name && (
+                        <span
+                          id="name-error"
+                          className="field-error"
+                          role="alert"
+                        >
+                          {errors.name}
+                        </span>
+                      )}
+                    </div>
 
-                <div className="form-group">
-                  <label htmlFor="phone">Téléphone *</label>
-                  <input
-                    type="tel"
-                    id="phone"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    required
-                    pattern="[0-9]{10}"
-                    placeholder="0612345678"
-                    className="form-input"
-                  />
-                  <small className="form-hint">
-                    Format : 10 chiffres sans espaces
-                  </small>
-                </div>
+                    <div className="form-group">
+                      <label htmlFor="company">Company *</label>
+                      <input
+                        id="company"
+                        type="text"
+                        name="company"
+                        value={formData.company}
+                        onChange={handleChange}
+                        required
+                        placeholder="Your Company"
+                        aria-invalid={errors.company ? "true" : "false"}
+                        aria-describedby={
+                          errors.company ? "company-error" : undefined
+                        }
+                      />
+                      {errors.company && (
+                        <span
+                          id="company-error"
+                          className="field-error"
+                          role="alert"
+                        >
+                          {errors.company}
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
-                <div className="form-group">
-                  <label htmlFor="sector">Secteur d'activité *</label>
-                  <select
-                    id="sector"
-                    name="sector"
-                    value={formData.sector}
-                    onChange={handleChange}
-                    required
-                    className="form-input"
-                  >
-                    <option value="">Sélectionnez votre secteur</option>
-                    <option value="cvc">CVC / Climatisation</option>
-                    <option value="plomberie">Plomberie</option>
-                    <option value="electricite">Électricité</option>
-                    <option value="multi">Multi-technique</option>
-                    <option value="autre">Autre</option>
-                  </select>
-                </div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="email">Email *</label>
+                      <input
+                        id="email"
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        required
+                        placeholder="john@company.ca"
+                        autoComplete="email"
+                        aria-invalid={errors.email ? "true" : "false"}
+                        aria-describedby={
+                          errors.email ? "email-error" : undefined
+                        }
+                      />
+                      {errors.email && (
+                        <span
+                          id="email-error"
+                          className="field-error"
+                          role="alert"
+                        >
+                          {errors.email}
+                        </span>
+                      )}
+                    </div>
 
-                <div className="form-group">
-                  <label htmlFor="message">Votre message</label>
-                  <textarea
-                    id="message"
-                    name="message"
-                    value={formData.message}
-                    onChange={handleChange}
-                    rows="5"
-                    placeholder="Décrivez votre besoin ou posez vos questions..."
-                    className="form-input"
-                  />
-                </div>
+                    <div className="form-group">
+                      <label htmlFor="phone">Phone *</label>
+                      <input
+                        id="phone"
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        required
+                        placeholder="(514) 123-4567"
+                        autoComplete="tel"
+                        aria-invalid={errors.phone ? "true" : "false"}
+                        aria-describedby={
+                          errors.phone ? "phone-error" : undefined
+                        }
+                      />
+                      {errors.phone && (
+                        <span
+                          id="phone-error"
+                          className="field-error"
+                          role="alert"
+                        >
+                          {errors.phone}
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
-                <div className="form-checkbox-group">
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      name="requestDemo"
-                      checked={formData.requestDemo}
-                      onChange={handleChange}
-                    />
-                    <span>Je souhaite une démonstration gratuite</span>
-                  </label>
-
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      name="acceptContact"
-                      checked={formData.acceptContact}
+                  <div className="form-group">
+                    <label htmlFor="sector">Industry *</label>
+                    <select
+                      id="sector"
+                      name="sector"
+                      value={formData.sector}
                       onChange={handleChange}
                       required
-                    />
-                    <span>
-                      J'accepte d'être contacté par Aghiles CHAOUCHE *
-                    </span>
-                  </label>
-                </div>
-
-                <div className="rgpd-notice">
-                  <Lock className="icon-xs" />
-                  <p>
-                    <strong>Protection de vos données (RGPD)</strong>
-                    <br />
-                    Vos informations sont stockées de manière sécurisée et
-                    utilisées uniquement pour votre demande.
-                  </p>
-                </div>
-
-                {formStatus.message && (
-                  <div className={`form-status ${formStatus.type}`}>
-                    {formStatus.message}
+                    >
+                      <option value="">Select Industry</option>
+                      <option value="hvac">HVAC</option>
+                      <option value="plumbing">Plumbing</option>
+                      <option value="electrical">Electrical</option>
+                      <option value="multi">Multi-technical</option>
+                      <option value="other">Other</option>
+                    </select>
                   </div>
-                )}
 
-                <button
-                  type="submit"
-                  className="btn btn-primary btn-block btn-magnetic"
-                >
-                  <span className="btn-ink" />
-                  <Send className="icon-sm" />
-                  Envoyer ma demande
-                </button>
-              </form>
-            </div>
+                  <div className="form-group">
+                    <label htmlFor="message">Message</label>
+                    <textarea
+                      id="message"
+                      name="message"
+                      value={formData.message}
+                      onChange={handleChange}
+                      rows="4"
+                      placeholder="Tell us about your needs..."
+                    />
+                  </div>
+
+                  <div className="form-checkboxes">
+                    <label className="checkbox-label" htmlFor="requestDemo">
+                      <input
+                        id="requestDemo"
+                        type="checkbox"
+                        name="requestDemo"
+                        checked={formData.requestDemo}
+                        onChange={handleChange}
+                      />
+                      <span>I want a free demonstration</span>
+                    </label>
+
+                    <label className="checkbox-label" htmlFor="acceptContact">
+                      <input
+                        id="acceptContact"
+                        type="checkbox"
+                        name="acceptContact"
+                        checked={formData.acceptContact}
+                        onChange={handleChange}
+                        required
+                      />
+                      <span>I accept to be contacted *</span>
+                    </label>
+                  </div>
+
+                  {status.message && (
+                    <div
+                      className={`form-status ${status.type}`}
+                      role="status"
+                      aria-live="polite"
+                    >
+                      {status.message}
+                    </div>
+                  )}
+
+                  <div className="hero-cta">
+                    <MagneticButton
+                      type="submit"
+                      className="btn btn-primary full interactive"
+                      ariaLabel="Send message"
+                    >
+                      <Send size={20} aria-hidden="true" />
+                      <span>Send Message</span>
+                      <ArrowRight size={18} aria-hidden="true" />
+                    </MagneticButton>
+
+                    {/* Bouton utilitaire: ne doit pas soumettre */}
+                    <MagneticButton
+                      type="button"
+                      className="btn btn-secondary full interactive"
+                      ariaLabel="Reset form"
+                      onClick={() => {
+                        setFormData({
+                          name: "",
+                          company: "",
+                          email: "",
+                          phone: "",
+                          sector: "",
+                          message: "",
+                          requestDemo: false,
+                          acceptContact: false,
+                        });
+                        setErrors({});
+                        setStatus({ type: "", message: "" });
+                      }}
+                    >
+                      <span>Reset</span>
+                    </MagneticButton>
+                  </div>
+                </form>
+              </TiltCard>
+            </ScrollReveal>
           </div>
         </div>
       </section>
@@ -752,94 +1383,63 @@ const ContactPage = () => {
   );
 };
 
-/* ---------------------- Navigation ---------------------- */
-const Navigation = () => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const location = useLocation();
-
-  useEffect(() => setMobileMenuOpen(false), [location.pathname]); // close on route
-
-  useEffect(() => {
-    const onScroll = () => {
-      document.body.classList.toggle("nav-scrolled", window.scrollY > 8);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+/* =========================================
+   404 PAGE
+========================================= */
+const NotFoundPage = () => {
+  const navigate = useNavigate();
 
   return (
-    <nav className="navbar">
-      <div className="container">
-        <div className="navbar-content">
-          <Link to="/" className="navbar-brand">
-            <span className="brand-text">ServiceOps</span>
-          </Link>
-
-          <div className={`navbar-menu ${mobileMenuOpen ? "mobile-open" : ""}`}>
-            <Link
-              to="/"
-              className={`navbar-link ${
-                location.pathname === "/" ? "active" : ""
-              }`}
+    <div className="page-wrapper">
+      <section className="section not-found-section">
+        <div className="container">
+          <div className="not-found-content">
+            <h1 className="not-found-title">404</h1>
+            <h2>Page Not Found</h2>
+            <p>The page you're looking for doesn't exist or has been moved.</p>
+            <MagneticButton
+              onClick={() => navigate("/")}
+              className="btn btn-primary interactive"
+              ariaLabel="Go back to home"
             >
-              Accueil
-            </Link>
-            <Link
-              to="/a-propos"
-              className={`navbar-link ${
-                location.pathname === "/a-propos" ? "active" : ""
-              }`}
-            >
-              À propos
-            </Link>
-            <Link
-              to="/contact"
-              className={`navbar-link ${
-                location.pathname === "/contact" ? "active" : ""
-              }`}
-            >
-              Contact
-            </Link>
+              <span>Back to Home</span>
+              <ArrowRight size={18} aria-hidden="true" />
+            </MagneticButton>
           </div>
-
-          <button
-            className="mobile-menu-toggle"
-            onClick={() => setMobileMenuOpen((s) => !s)}
-          >
-            {mobileMenuOpen ? <X /> : <Menu />}
-          </button>
         </div>
-      </div>
-    </nav>
+      </section>
+    </div>
   );
 };
 
-/* ------------------------- Footer -------------------------- */
-const Footer = () => {
-  const currentYear = new Date().getFullYear();
+/* =========================================
+   FOOTER
+========================================= */
+const Footer = memo(() => {
+  const year = new Date().getFullYear();
+
   return (
-    <footer className="footer">
+    <footer className="footer" role="contentinfo">
       <div className="container">
-        <div className="footer-content">
-          <div className="footer-section">
+        <div className="footer-grid">
+          <div className="footer-col">
             <h3>ServiceOps</h3>
-            <p>La solution de digitalisation pour les techniciens sur site.</p>
-            <p className="footer-ownership">
-              <strong>© {currentYear} Aghiles CHAOUCHE</strong>
+            <p>Digital solution for field technicians across Canada.</p>
+            <p className="footer-copyright">
+              © {year} Aghiles CHAOUCHE
               <br />
-              Ce site m'appartient - Auto-entrepreneur
+              Self-Employed - Canada
             </p>
           </div>
 
-          <div className="footer-section">
+          <div className="footer-col">
             <h4>Navigation</h4>
-            <ul className="footer-links">
+            <ul role="list">
               <li>
-                <Link to="/">Accueil</Link>
+                <Link to="/">Home</Link>
               </li>
               <li>
-                <Link to="/a-propos">À propos</Link>
+                <Link to="/about">About</Link>
               </li>
               <li>
                 <Link to="/contact">Contact</Link>
@@ -847,28 +1447,25 @@ const Footer = () => {
             </ul>
           </div>
 
-          <div className="footer-section">
-            <h4>Mentions légales</h4>
+          <div className="footer-col">
+            <h4>Contact</h4>
             <p>
-              Propriétaire : Aghiles CHAOUCHE
+              Email:{" "}
+              <a href="mailto:contact@serviceops.ca">contact@serviceops.ca</a>
               <br />
-              Statut : Auto-entrepreneur
-              <br />
-              Email : contact@serviceops.fr
-              <br />
-              Hébergement : France
+              Hosting: Canada
             </p>
           </div>
 
-          <div className="footer-section">
-            <h4>Conformité</h4>
+          <div className="footer-col">
+            <h4>Compliance</h4>
             <div className="footer-badges">
               <div className="footer-badge">
-                <Shield className="icon-xs" />
-                <span>RGPD</span>
+                <Shield size={16} aria-hidden="true" />
+                <span>Privacy</span>
               </div>
               <div className="footer-badge">
-                <Lock className="icon-xs" />
+                <Lock size={16} aria-hidden="true" />
                 <span>SSL</span>
               </div>
             </div>
@@ -876,69 +1473,100 @@ const Footer = () => {
         </div>
 
         <div className="footer-bottom">
-          <p>
-            Tous droits réservés - ServiceOps est une marque appartenant à
-            Aghiles CHAOUCHE
-          </p>
+          <p>All rights reserved - ServiceOps by Aghiles CHAOUCHE</p>
         </div>
       </div>
     </footer>
   );
-};
+});
 
-/* ------------------------- App -------------------------- */
-function App() {
-  // SEO meta updates
-  useEffect(() => {
-    document.title =
-      "ServiceOps - Digitalisation des interventions terrain | Aghiles CHAOUCHE";
+Footer.displayName = "Footer";
 
-    const setMeta = (selector, content) => {
-      const el = document.querySelector(selector);
-      if (el) el.content = content;
-    };
-    setMeta(
-      'meta[name="description"]',
-      "ServiceOps par Aghiles CHAOUCHE : Solution complète de digitalisation pour techniciens. Bons de travail numériques, signatures électroniques, envoi automatique."
-    );
-    setMeta(
-      'meta[property="og:title"]',
-      "ServiceOps - Digitalisation des interventions terrain"
-    );
-    setMeta(
-      'meta[property="og:description"]',
-      "Transformez vos bons de travail papier en rapports numériques signés. Solution pour CVC, plomberie, électricité."
-    );
-  }, []);
-
+/* =========================================
+   PAGE TRANSITION
+========================================= */
+const PageTransitionContainer = ({ children }) => {
   const location = useLocation();
-  const revealRootRef = useScrollReveal(".main-content");
+  const prefersReducedMotion = usePrefersReducedMotion();
+
+  const variants = prefersReducedMotion
+    ? {
+        initial: { opacity: 1 },
+        enter: { opacity: 1 },
+        exit: { opacity: 1 },
+      }
+    : {
+        initial: { opacity: 0, y: 20, filter: "blur(2px)" },
+        enter: {
+          opacity: 1,
+          y: 0,
+          filter: "blur(0px)",
+          transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] },
+        },
+        exit: {
+          opacity: 0,
+          y: -10,
+          filter: "blur(2px)",
+          transition: { duration: 0.3, ease: [0.4, 0, 1, 1] },
+        },
+      };
 
   return (
+    <main id="main-content" className="main-content" role="main">
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={location.pathname}
+          variants={variants}
+          initial="initial"
+          animate="enter"
+          exit="exit"
+        >
+          {children}
+        </motion.div>
+      </AnimatePresence>
+    </main>
+  );
+};
+
+PageTransitionContainer.propTypes = {
+  children: PropTypes.node.isRequired,
+};
+
+/* =========================================
+   SHELL
+========================================= */
+function Shell() {
+  return (
     <>
+      <SkipLink />
       <ScrollToTop />
-      <div className="app">
-        <Navigation />
-        <main className="main-content" ref={revealRootRef}>
-          {/* Page Transition wrapper */}
-          <div className="page-transition" key={location.pathname}>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/a-propos" element={<AboutPage />} />
-              <Route path="/contact" element={<ContactPage />} />
-            </Routes>
-          </div>
-        </main>
-        <Footer />
-      </div>
+      <ScrollProgress />
+      <CustomCursor />
+      <Navigation />
+      <PageTransitionContainer>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </PageTransitionContainer>
+      <Footer />
     </>
   );
 }
 
-export default function RootApp() {
+/* =========================================
+   APP
+========================================= */
+export default function App() {
   return (
-    <Router>
-      <App />
-    </Router>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <Router>
+          <Shell />
+        </Router>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
