@@ -1,4 +1,4 @@
-// App.jsx — ServiceOps (Optimisé + Accessible + Production Ready)
+// App.jsx — ServiceOps (Optimisé + Accessible + Production Ready + NO PAGE REFRESH)
 import React, { useState, useEffect, useRef, useCallback, memo } from "react";
 import {
   BrowserRouter as Router,
@@ -145,8 +145,8 @@ const VALUES_DATA = [
 ];
 
 const CONTACT_INFO = [
-  { icon: Mail, label: "Email", value: "contact@serviceops.ca" },
-  { icon: Phone, label: "Phone", value: "Available on request" },
+  { icon: Mail, label: "Email", value: "chaouche.aghiles@gmail.com" },
+  { icon: Phone, label: "Phone", value: "+1 (438) 788-9596" },
   { icon: MapPin, label: "Location", value: "Canada - Nationwide" },
 ];
 
@@ -377,13 +377,19 @@ const ScrollProgress = memo(() => {
 ScrollProgress.displayName = "ScrollProgress";
 
 /* =========================================
-   SCROLL TO TOP
+   SCROLL TO TOP (CORRIGÉ - NO REFRESH)
 ========================================= */
 const ScrollToTop = () => {
   const { pathname } = useLocation();
+  
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // Utiliser scrollTo sans behavior pour éviter conflits
+    // requestAnimationFrame assure que le DOM est prêt
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+    });
   }, [pathname]);
+  
   return null;
 };
 
@@ -446,10 +452,10 @@ Counter.propTypes = {
 Counter.displayName = "Counter";
 
 /* =========================================
-   MAGNETIC BUTTON
+   MAGNETIC BUTTON (CORRIGÉ - NO REFRESH)
 ========================================= */
 const MagneticButton = memo(
-  ({ children, onClick, className = "", type = "button", ariaLabel }) => {
+  ({ children, onClick, className = "", type = "button", ariaLabel, disabled = false }) => {
     const btnRef = useRef(null);
     const isDesktop = useMediaQuery("(hover: hover) and (pointer: fine)");
     const prefersReducedMotion = usePrefersReducedMotion();
@@ -478,11 +484,25 @@ const MagneticButton = memo(
       };
     }, [isDesktop, prefersReducedMotion]);
 
+    // Gestionnaire de clic sécurisé qui empêche tout comportement par défaut indésirable
+    const handleClick = useCallback((e) => {
+      // Empêcher tout comportement par défaut si c'est un lien
+      if (e.currentTarget.tagName === 'A') {
+        e.preventDefault();
+      }
+      
+      // Appeler le onClick fourni
+      if (onClick && !disabled) {
+        onClick(e);
+      }
+    }, [onClick, disabled]);
+
     return (
       <button
         ref={btnRef}
         type={type}
-        onClick={onClick}
+        onClick={handleClick}
+        disabled={disabled}
         className={`btn-magnetic ${className}`}
         aria-label={ariaLabel}
       >
@@ -498,6 +518,7 @@ MagneticButton.propTypes = {
   className: PropTypes.string,
   type: PropTypes.string,
   ariaLabel: PropTypes.string,
+  disabled: PropTypes.bool,
 };
 
 MagneticButton.displayName = "MagneticButton";
@@ -555,7 +576,7 @@ TiltCard.propTypes = {
 TiltCard.displayName = "TiltCard";
 
 /* =========================================
-   NAVIGATION
+   NAVIGATION (CORRIGÉ - NO REFRESH)
 ========================================= */
 const Navigation = memo(() => {
   const [open, setOpen] = useState(false);
@@ -597,6 +618,13 @@ const Navigation = memo(() => {
     return () => document.removeEventListener("keydown", handleEscape);
   }, [open]);
 
+  // Gestionnaire de clic pour les liens de navigation
+  const handleLinkClick = useCallback((e) => {
+    // S'assurer que React Router gère la navigation
+    // Ne rien faire de spécial, laisser Link faire son travail
+    setOpen(false);
+  }, []);
+
   return (
     <nav
       className={`navbar ${scrolled ? "scrolled" : ""}`}
@@ -609,6 +637,7 @@ const Navigation = memo(() => {
             to="/"
             className="navbar-brand interactive"
             aria-label="ServiceOps Home"
+            onClick={handleLinkClick}
           >
             <div className="brand-icon" aria-hidden="true">
               <Layers />
@@ -624,6 +653,7 @@ const Navigation = memo(() => {
               }`}
               role="menuitem"
               aria-current={location.pathname === "/" ? "page" : undefined}
+              onClick={handleLinkClick}
             >
               Home
             </Link>
@@ -634,6 +664,7 @@ const Navigation = memo(() => {
               }`}
               role="menuitem"
               aria-current={location.pathname === "/about" ? "page" : undefined}
+              onClick={handleLinkClick}
             >
               About
             </Link>
@@ -646,6 +677,7 @@ const Navigation = memo(() => {
               aria-current={
                 location.pathname === "/contact" ? "page" : undefined
               }
+              onClick={handleLinkClick}
             >
               Contact
             </Link>
@@ -687,6 +719,12 @@ const HomePage = () => {
   const navigate = useNavigate();
   useScrollAnimations();
 
+  // Gestionnaires de navigation sécurisés
+  const handleNavigateContact = useCallback((e) => {
+    e.preventDefault();
+    navigate("/contact");
+  }, [navigate]);
+
   return (
     <>
       {/* HERO */}
@@ -701,20 +739,13 @@ const HomePage = () => {
           <div className="hero-grid">
             <div className="hero-content">
               <ScrollReveal delay={0}>
-                <div className="hero-badge">
-                  <Sparkles size={16} aria-hidden="true" />
-                  <span>Next-Gen Field Management Platform</span>
-                </div>
-              </ScrollReveal>
-
-              <ScrollReveal delay={0.1}>
                 <h1 id="hero-title" className="hero-title">
                   Say Goodbye to{" "}
                   <span className="gradient-text">Paperwork</span>
                 </h1>
               </ScrollReveal>
 
-              <ScrollReveal delay={0.2}>
+              <ScrollReveal delay={0.1}>
                 <p className="hero-description">
                   Transform paper work orders into digital reports with
                   electronic signatures, sent automatically. Complete solution
@@ -722,10 +753,10 @@ const HomePage = () => {
                 </p>
               </ScrollReveal>
 
-              <ScrollReveal type="scale" delay={0.3}>
+              <ScrollReveal type="scale" delay={0.2}>
                 <div className="hero-cta">
                   <MagneticButton
-                    onClick={() => navigate("/contact")}
+                    onClick={handleNavigateContact}
                     className="btn btn-primary interactive"
                     ariaLabel="Request a demo"
                   >
@@ -735,7 +766,7 @@ const HomePage = () => {
                   </MagneticButton>
 
                   <MagneticButton
-                    onClick={() => navigate("/contact")}
+                    onClick={handleNavigateContact}
                     className="btn btn-secondary interactive"
                     ariaLabel="Talk to us"
                   >
@@ -745,7 +776,7 @@ const HomePage = () => {
                 </div>
               </ScrollReveal>
 
-              <ScrollReveal delay={0.4}>
+              <ScrollReveal delay={0.3}>
                 <div className="hero-stats" role="list">
                   <div className="stat" role="listitem">
                     <div className="stat-value">
@@ -771,7 +802,7 @@ const HomePage = () => {
 
             <ScrollReveal type="scale" delay={0.2} className="hero-visual">
               <div
-                className="phone-mockup"
+                className="phone-mockup phone-mockup-small"
                 role="img"
                 aria-label="Mobile application mockup"
               >
@@ -905,7 +936,7 @@ const HomePage = () => {
               <h2 id="cta-title">Ready to Transform Your Business?</h2>
               <p>Join companies revolutionizing their field operations</p>
               <MagneticButton
-                onClick={() => navigate("/contact")}
+                onClick={handleNavigateContact}
                 className="btn btn-primary interactive"
                 ariaLabel="Schedule a free demo"
               >
@@ -997,7 +1028,7 @@ const AboutPage = () => {
 };
 
 /* =========================================
-   CONTACT PAGE (anti-refresh)
+   CONTACT PAGE (CORRIGÉ - NO REFRESH)
 ========================================= */
 const ContactPage = () => {
   useScrollAnimations();
@@ -1043,24 +1074,9 @@ const ContactPage = () => {
     }
   }, []);
 
-  // Empêche Enter de soumettre (sauf textarea)
-  const blockEnterSubmit = useCallback((e) => {
-    if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") {
-      e.preventDefault();
-    }
-  }, []);
-
-  // Garde-fou: empêche toute navigation via liens # dans la carte
-  const stopHashLinkNav = useCallback((e) => {
-    const a = e.target.closest("a");
-    if (a && a.getAttribute("href") === "#") {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  }, []);
-
   const handleSubmit = useCallback(
     (e) => {
+      // CRITIQUE: Empêcher TOUS les comportements par défaut
       e.preventDefault();
       e.stopPropagation();
 
@@ -1089,7 +1105,7 @@ const ContactPage = () => {
 
       setStatus({ type: "loading", message: "Sending..." });
 
-      // Simulation d'appel API — remplace par fetch/axios si besoin
+      // Simulation d'appel API
       setTimeout(() => {
         setStatus({
           type: "success",
@@ -1107,9 +1123,31 @@ const ContactPage = () => {
         });
         setErrors({});
       }, 1000);
+
+      // Retourner false pour plus de sécurité
+      return false;
     },
     [formData]
   );
+
+  // Gestionnaire de reset sécurisé
+  const handleReset = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setFormData({
+      name: "",
+      company: "",
+      email: "",
+      phone: "",
+      sector: "",
+      message: "",
+      requestDemo: false,
+      acceptContact: false,
+    });
+    setErrors({});
+    setStatus({ type: "", message: "" });
+  }, []);
 
   return (
     <div className="page-wrapper">
@@ -1157,12 +1195,13 @@ const ContactPage = () => {
             </ScrollReveal>
 
             <ScrollReveal type="scale" delay={0.2}>
-              <TiltCard className="contact-form-card" onClick={stopHashLinkNav}>
+              <TiltCard className="contact-form-card">
                 <form
                   className="contact-form"
                   noValidate
                   onSubmit={handleSubmit}
-                  onKeyDown={blockEnterSubmit}
+                  method="post"
+                  action="#"
                 >
                   <div className="form-row">
                     <div className="form-group">
@@ -1344,31 +1383,18 @@ const ContactPage = () => {
                       type="submit"
                       className="btn btn-primary full interactive"
                       ariaLabel="Send message"
+                      disabled={status.type === "loading"}
                     >
                       <Send size={20} aria-hidden="true" />
                       <span>Send Message</span>
                       <ArrowRight size={18} aria-hidden="true" />
                     </MagneticButton>
 
-                    {/* Bouton utilitaire: ne doit pas soumettre */}
                     <MagneticButton
                       type="button"
                       className="btn btn-secondary full interactive"
                       ariaLabel="Reset form"
-                      onClick={() => {
-                        setFormData({
-                          name: "",
-                          company: "",
-                          email: "",
-                          phone: "",
-                          sector: "",
-                          message: "",
-                          requestDemo: false,
-                          acceptContact: false,
-                        });
-                        setErrors({});
-                        setStatus({ type: "", message: "" });
-                      }}
+                      onClick={handleReset}
                     >
                       <span>Reset</span>
                     </MagneticButton>
@@ -1389,6 +1415,11 @@ const ContactPage = () => {
 const NotFoundPage = () => {
   const navigate = useNavigate();
 
+  const handleGoHome = useCallback((e) => {
+    e.preventDefault();
+    navigate("/");
+  }, [navigate]);
+
   return (
     <div className="page-wrapper">
       <section className="section not-found-section">
@@ -1398,7 +1429,7 @@ const NotFoundPage = () => {
             <h2>Page Not Found</h2>
             <p>The page you're looking for doesn't exist or has been moved.</p>
             <MagneticButton
-              onClick={() => navigate("/")}
+              onClick={handleGoHome}
               className="btn btn-primary interactive"
               ariaLabel="Go back to home"
             >
@@ -1451,7 +1482,9 @@ const Footer = memo(() => {
             <h4>Contact</h4>
             <p>
               Email:{" "}
-              <a href="mailto:contact@serviceops.ca">contact@serviceops.ca</a>
+              <a href="mailto:chaouche.aghiles@gmail.com">chaouche.aghiles@gmail.com</a>
+              <br />
+              Phone: +1 (438) 788-9596
               <br />
               Hosting: Canada
             </p>
