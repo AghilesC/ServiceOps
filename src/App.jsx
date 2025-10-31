@@ -1,4 +1,4 @@
-// App.jsx — ServiceOps (Optimisé + Accessible + Production Ready + NO PAGE REFRESH)
+// App.jsx — ServiceOps MULTILINGUE (FR/EN)
 import React, { useState, useEffect, useRef, useCallback, memo } from "react";
 import {
   BrowserRouter as Router,
@@ -36,12 +36,15 @@ import {
   ChevronDown,
   ArrowRight,
   AlertTriangle,
+  Languages,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 // Hooks & components
 import { useScrollAnimations } from "./hooks/useScrollAnimations";
 import { ScrollReveal } from "./components/ScrollReveal";
+import { LanguageProvider, useLanguage } from "./contexts/LanguageContext";
+import { useTranslation } from "./translations/translations";
 
 /* =========================================
    CONSTANTES & DONNÉES
@@ -57,105 +60,6 @@ const BREAKPOINTS = {
   TABLET: 768,
   DESKTOP: 1024,
 };
-
-const FEATURES_DATA = [
-  {
-    icon: FileText,
-    title: "Digital Work Orders",
-    desc: "Create and sign work orders electronically. No more lost papers.",
-    color: "blue",
-  },
-  {
-    icon: Send,
-    title: "Real-Time Delivery",
-    desc: "Instant report delivery as soon as technician completes job.",
-    color: "green",
-  },
-  {
-    icon: Database,
-    title: "Equipment Database",
-    desc: "Unified history tracking with photos and serial numbers.",
-    color: "purple",
-  },
-  {
-    icon: Calendar,
-    title: "Smart Scheduling",
-    desc: "Plan and sync your team's operations effortlessly.",
-    color: "orange",
-  },
-  {
-    icon: BarChart3,
-    title: "Analytics Dashboard",
-    desc: "Real-time insights and performance tracking.",
-    color: "pink",
-  },
-  {
-    icon: Lock,
-    title: "Enterprise Security",
-    desc: "End-to-end encryption and compliance guaranteed.",
-    color: "red",
-  },
-];
-
-const PROCESS_STEPS = [
-  {
-    num: "01",
-    icon: FileText,
-    title: "Fill Out",
-    desc: "Complete digital work order on mobile device",
-  },
-  {
-    num: "02",
-    icon: CheckCircle,
-    title: "Sign",
-    desc: "Electronic signature from client",
-  },
-  {
-    num: "03",
-    icon: Send,
-    title: "Send",
-    desc: "Automatic report delivery",
-  },
-  {
-    num: "04",
-    icon: TrendingUp,
-    title: "Invoice",
-    desc: "Automated billing and tracking",
-  },
-];
-
-const BENEFITS_DATA = [
-  { icon: Zap, value: 30, suffix: "%", label: "Productivity", color: "blue" },
-  { icon: Shield, value: 99, suffix: "%", label: "Accuracy", color: "green" },
-  {
-    icon: Database,
-    value: 100,
-    suffix: "%",
-    label: "Tracked",
-    color: "purple",
-  },
-  { icon: Users, value: 24, suffix: "/7", label: "Available", color: "orange" },
-];
-
-const VALUES_DATA = [
-  { icon: Shield, title: "Reliability", desc: "24/7 system you can trust" },
-  { icon: Zap, title: "Simplicity", desc: "Intuitive for everyone" },
-  { icon: Lock, title: "Security", desc: "Data protection first" },
-  { icon: Clock, title: "Real-Time", desc: "Instant updates" },
-];
-
-const CONTACT_INFO = [
-  { icon: Mail, label: "Email", value: "chaouche.aghiles@gmail.com" },
-  { icon: Phone, label: "Phone", value: "+1 (438) 788-9596" },
-  { icon: MapPin, label: "Location", value: "Canada - Nationwide" },
-];
-
-const TRUST_ITEMS = [
-  "24h Response Guaranteed",
-  "Free Demonstration",
-  "Canadian Service",
-  "Dedicated Support",
-];
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^[\d\s\-\+\(\)]+$/;
@@ -205,13 +109,13 @@ class ErrorBoundary extends React.Component {
         <div className="error-boundary">
           <div className="error-content">
             <AlertTriangle size={48} />
-            <h1>Oops! Something went wrong</h1>
-            <p>We apologize for the inconvenience. Please refresh the page.</p>
+            <h1>{this.props.t("error.title")}</h1>
+            <p>{this.props.t("error.description")}</p>
             <button
               onClick={() => window.location.reload()}
               className="btn btn-primary"
             >
-              Refresh Page
+              {this.props.t("error.button")}
             </button>
           </div>
         </div>
@@ -224,6 +128,7 @@ class ErrorBoundary extends React.Component {
 
 ErrorBoundary.propTypes = {
   children: PropTypes.node.isRequired,
+  t: PropTypes.func.isRequired,
 };
 
 /* =========================================
@@ -269,11 +174,16 @@ const useTheme = () => {
 /* =========================================
    SKIP LINK (Accessibilité)
 ========================================= */
-const SkipLink = () => (
-  <a href="#main-content" className="skip-link">
-    Skip to main content
-  </a>
-);
+const SkipLink = () => {
+  const { language } = useLanguage();
+  const { t } = useTranslation(language);
+
+  return (
+    <a href="#main-content" className="skip-link">
+      {t("nav.skipToContent")}
+    </a>
+  );
+};
 
 /* =========================================
    CUSTOM CURSOR (Desktop seulement)
@@ -377,14 +287,12 @@ const ScrollProgress = memo(() => {
 ScrollProgress.displayName = "ScrollProgress";
 
 /* =========================================
-   SCROLL TO TOP (CORRIGÉ - NO REFRESH)
+   SCROLL TO TOP
 ========================================= */
 const ScrollToTop = () => {
   const { pathname } = useLocation();
   
   useEffect(() => {
-    // Utiliser scrollTo sans behavior pour éviter conflits
-    // requestAnimationFrame assure que le DOM est prêt
     requestAnimationFrame(() => {
       window.scrollTo(0, 0);
     });
@@ -452,7 +360,7 @@ Counter.propTypes = {
 Counter.displayName = "Counter";
 
 /* =========================================
-   MAGNETIC BUTTON (CORRIGÉ - NO REFRESH)
+   MAGNETIC BUTTON
 ========================================= */
 const MagneticButton = memo(
   ({ children, onClick, className = "", type = "button", ariaLabel, disabled = false }) => {
@@ -484,14 +392,11 @@ const MagneticButton = memo(
       };
     }, [isDesktop, prefersReducedMotion]);
 
-    // Gestionnaire de clic sécurisé qui empêche tout comportement par défaut indésirable
     const handleClick = useCallback((e) => {
-      // Empêcher tout comportement par défaut si c'est un lien
       if (e.currentTarget.tagName === 'A') {
         e.preventDefault();
       }
       
-      // Appeler le onClick fourni
       if (onClick && !disabled) {
         onClick(e);
       }
@@ -576,13 +481,15 @@ TiltCard.propTypes = {
 TiltCard.displayName = "TiltCard";
 
 /* =========================================
-   NAVIGATION (CORRIGÉ - NO REFRESH)
+   NAVIGATION
 ========================================= */
 const Navigation = memo(() => {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
+  const { language, toggleLanguage } = useLanguage();
+  const { t } = useTranslation(language);
   const menuRef = useRef(null);
 
   useEffect(() => setOpen(false), [location.pathname]);
@@ -618,10 +525,7 @@ const Navigation = memo(() => {
     return () => document.removeEventListener("keydown", handleEscape);
   }, [open]);
 
-  // Gestionnaire de clic pour les liens de navigation
   const handleLinkClick = useCallback((e) => {
-    // S'assurer que React Router gère la navigation
-    // Ne rien faire de spécial, laisser Link faire son travail
     setOpen(false);
   }, []);
 
@@ -655,7 +559,7 @@ const Navigation = memo(() => {
               aria-current={location.pathname === "/" ? "page" : undefined}
               onClick={handleLinkClick}
             >
-              Home
+              {t("nav.home")}
             </Link>
             <Link
               to="/about"
@@ -666,7 +570,7 @@ const Navigation = memo(() => {
               aria-current={location.pathname === "/about" ? "page" : undefined}
               onClick={handleLinkClick}
             >
-              About
+              {t("nav.about")}
             </Link>
             <Link
               to="/contact"
@@ -679,17 +583,34 @@ const Navigation = memo(() => {
               }
               onClick={handleLinkClick}
             >
-              Contact
+              {t("nav.contact")}
             </Link>
           </div>
 
           <div className="navbar-actions">
             <button
+              onClick={toggleLanguage}
+              className="theme-toggle interactive"
+              aria-label={
+                language === "en"
+                  ? t("nav.switchToFrench")
+                  : t("nav.switchToEnglish")
+              }
+              title={
+                language === "en"
+                  ? t("nav.switchToFrench")
+                  : t("nav.switchToEnglish")
+              }
+            >
+              <Languages size={20} />
+              <span className="lang-badge">{language.toUpperCase()}</span>
+            </button>
+            <button
               onClick={toggleTheme}
               className="theme-toggle interactive"
-              aria-label={`Switch to ${
-                theme === "dark" ? "light" : "dark"
-              } mode`}
+              aria-label={
+                theme === "dark" ? t("nav.switchToLight") : t("nav.switchToDark")
+              }
               aria-pressed={theme === "dark"}
             >
               {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
@@ -697,7 +618,7 @@ const Navigation = memo(() => {
             <button
               className="mobile-toggle"
               onClick={() => setOpen(!open)}
-              aria-label={open ? "Close menu" : "Open menu"}
+              aria-label={open ? t("nav.closeMenu") : t("nav.openMenu")}
               aria-expanded={open}
               aria-controls="navbar-menu"
             >
@@ -717,13 +638,94 @@ Navigation.displayName = "Navigation";
 ========================================= */
 const HomePage = () => {
   const navigate = useNavigate();
+  const { language } = useLanguage();
+  const { t } = useTranslation(language);
   useScrollAnimations();
 
-  // Gestionnaires de navigation sécurisés
   const handleNavigateContact = useCallback((e) => {
     e.preventDefault();
     navigate("/contact");
   }, [navigate]);
+
+  // Données dynamiques basées sur la langue
+  const FEATURES_DATA = [
+    {
+      icon: FileText,
+      title: t("features.items.0.title"),
+      desc: t("features.items.0.desc"),
+      color: "blue",
+    },
+    {
+      icon: Send,
+      title: t("features.items.1.title"),
+      desc: t("features.items.1.desc"),
+      color: "green",
+    },
+    {
+      icon: Database,
+      title: t("features.items.2.title"),
+      desc: t("features.items.2.desc"),
+      color: "purple",
+    },
+    {
+      icon: Calendar,
+      title: t("features.items.3.title"),
+      desc: t("features.items.3.desc"),
+      color: "orange",
+    },
+    {
+      icon: BarChart3,
+      title: t("features.items.4.title"),
+      desc: t("features.items.4.desc"),
+      color: "pink",
+    },
+    {
+      icon: Lock,
+      title: t("features.items.5.title"),
+      desc: t("features.items.5.desc"),
+      color: "red",
+    },
+  ];
+
+  const PROCESS_STEPS = [
+    {
+      num: "01",
+      icon: FileText,
+      title: t("process.steps.0.title"),
+      desc: t("process.steps.0.desc"),
+    },
+    {
+      num: "02",
+      icon: CheckCircle,
+      title: t("process.steps.1.title"),
+      desc: t("process.steps.1.desc"),
+    },
+    {
+      num: "03",
+      icon: Send,
+      title: t("process.steps.2.title"),
+      desc: t("process.steps.2.desc"),
+    },
+    {
+      num: "04",
+      icon: TrendingUp,
+      title: t("process.steps.3.title"),
+      desc: t("process.steps.3.desc"),
+    },
+  ];
+
+  const BENEFITS_DATA = [
+    { icon: Zap, value: 30, suffix: "%", label: t("benefits.items.0.label"), color: "blue" },
+    { icon: Shield, value: 99, suffix: "%", label: t("benefits.items.1.label"), color: "green" },
+    {
+      icon: Database,
+      value: 100,
+      suffix: "%",
+      label: t("benefits.items.2.label"),
+      color: "purple",
+    },
+    { icon: Users, value: 24, suffix: "/7", label: t("benefits.items.3.label"), color: "orange" },
+  ];
 
   return (
     <>
@@ -740,16 +742,14 @@ const HomePage = () => {
             <div className="hero-content">
               <ScrollReveal delay={0}>
                 <h1 id="hero-title" className="hero-title">
-                  Say Goodbye to{" "}
-                  <span className="gradient-text">Paperwork</span>
+                  {t("hero.title")}{" "}
+                  <span className="gradient-text">{t("hero.titleHighlight")}</span>
                 </h1>
               </ScrollReveal>
 
               <ScrollReveal delay={0.1}>
                 <p className="hero-description">
-                  Transform paper work orders into digital reports with
-                  electronic signatures, sent automatically. Complete solution
-                  for field technicians: HVAC, plumbing, electrical.
+                  {t("hero.description")}
                 </p>
               </ScrollReveal>
 
@@ -758,20 +758,20 @@ const HomePage = () => {
                   <MagneticButton
                     onClick={handleNavigateContact}
                     className="btn btn-primary interactive"
-                    ariaLabel="Request a demo"
+                    ariaLabel={t("hero.requestDemo")}
                   >
                     <Send size={20} aria-hidden="true" />
-                    <span>Request Demo</span>
+                    <span>{t("hero.requestDemo")}</span>
                     <ArrowRight size={18} aria-hidden="true" />
                   </MagneticButton>
 
                   <MagneticButton
                     onClick={handleNavigateContact}
                     className="btn btn-secondary interactive"
-                    ariaLabel="Talk to us"
+                    ariaLabel={t("hero.talkToUs")}
                   >
                     <Phone size={20} aria-hidden="true" />
-                    <span>Talk to Us</span>
+                    <span>{t("hero.talkToUs")}</span>
                   </MagneticButton>
                 </div>
               </ScrollReveal>
@@ -782,19 +782,19 @@ const HomePage = () => {
                     <div className="stat-value">
                       <Counter end={100} suffix="%" />
                     </div>
-                    <div className="stat-label">Privacy Compliant</div>
+                    <div className="stat-label">{t("hero.stats.privacy")}</div>
                   </div>
                   <div className="stat" role="listitem">
                     <div className="stat-value">
                       <Counter end={24} suffix="/7" />
                     </div>
-                    <div className="stat-label">Available</div>
+                    <div className="stat-label">{t("hero.stats.available")}</div>
                   </div>
                   <div className="stat" role="listitem">
                     <div className="stat-value">
                       <Counter end={99} suffix=".9%" />
                     </div>
-                    <div className="stat-label">Uptime</div>
+                    <div className="stat-label">{t("hero.stats.uptime")}</div>
                   </div>
                 </div>
               </ScrollReveal>
@@ -804,7 +804,7 @@ const HomePage = () => {
               <div
                 className="phone-mockup phone-mockup-small"
                 role="img"
-                aria-label="Mobile application mockup"
+                aria-label={t("hero.mockupAlt")}
               >
                 <div className="phone-frame">
                   <div className="phone-screen">
@@ -831,10 +831,10 @@ const HomePage = () => {
           <ScrollReveal>
             <div className="section-header">
               <h2 id="features-title" className="section-title">
-                Key Features
+                {t("features.title")}
               </h2>
               <p className="section-subtitle">
-                Everything you need to manage field operations
+                {t("features.subtitle")}
               </p>
             </div>
           </ScrollReveal>
@@ -868,9 +868,9 @@ const HomePage = () => {
           <ScrollReveal>
             <div className="section-header">
               <h2 id="process-title" className="section-title">
-                How It Works
+                {t("process.title")}
               </h2>
-              <p className="section-subtitle">Simple 4-step process</p>
+              <p className="section-subtitle">{t("process.subtitle")}</p>
             </div>
           </ScrollReveal>
 
@@ -902,9 +902,9 @@ const HomePage = () => {
           <ScrollReveal>
             <div className="section-header">
               <h2 id="benefits-title" className="section-title">
-                Business Benefits
+                {t("benefits.title")}
               </h2>
-              <p className="section-subtitle">Transform your operations</p>
+              <p className="section-subtitle">{t("benefits.subtitle")}</p>
             </div>
           </ScrollReveal>
 
@@ -933,15 +933,15 @@ const HomePage = () => {
           <ScrollReveal type="scale">
             <TiltCard className="cta-card">
               <Globe className="cta-icon" aria-hidden="true" />
-              <h2 id="cta-title">Ready to Transform Your Business?</h2>
-              <p>Join companies revolutionizing their field operations</p>
+              <h2 id="cta-title">{t("cta.title")}</h2>
+              <p>{t("cta.subtitle")}</p>
               <MagneticButton
                 onClick={handleNavigateContact}
                 className="btn btn-primary interactive"
-                ariaLabel="Schedule a free demo"
+                ariaLabel={t("cta.button")}
               >
                 <Calendar size={20} aria-hidden="true" />
-                <span>Schedule Free Demo</span>
+                <span>{t("cta.button")}</span>
                 <ArrowRight size={18} aria-hidden="true" />
               </MagneticButton>
             </TiltCard>
@@ -956,7 +956,16 @@ const HomePage = () => {
    ABOUT PAGE
 ========================================= */
 const AboutPage = () => {
+  const { language } = useLanguage();
+  const { t } = useTranslation(language);
   useScrollAnimations();
+
+  const VALUES_DATA = [
+    { icon: Shield, title: t("about.values.0.title"), desc: t("about.values.0.desc") },
+    { icon: Zap, title: t("about.values.1.title"), desc: t("about.values.1.desc") },
+    { icon: Lock, title: t("about.values.2.title"), desc: t("about.values.2.desc") },
+    { icon: Clock, title: t("about.values.3.title"), desc: t("about.values.3.desc") },
+  ];
 
   return (
     <div className="page-wrapper">
@@ -965,10 +974,10 @@ const AboutPage = () => {
           <ScrollReveal>
             <div className="section-header">
               <h1 id="about-title" className="page-title">
-                About ServiceOps
+                {t("about.title")}
               </h1>
               <p className="page-subtitle">
-                Building the future of field operations
+                {t("about.subtitle")}
               </p>
             </div>
           </ScrollReveal>
@@ -979,11 +988,9 @@ const AboutPage = () => {
                 <Users size={48} />
               </div>
               <h2>Aghiles CHAOUCHE</h2>
-              <p className="about-role">ServiceOps Creator</p>
+              <p className="about-role">{t("about.creator")}</p>
               <p className="about-intro">
-                Self-employed entrepreneur passionate about digitizing business
-                processes. I created ServiceOps to simplify life for field
-                technicians across Canada.
+                {t("about.intro")}
               </p>
             </TiltCard>
           </ScrollReveal>
@@ -991,14 +998,12 @@ const AboutPage = () => {
           <div className="about-grid">
             {[
               {
-                title: "Our Vision",
-                content:
-                  "Fully digitize field operations so technicians can focus on serving clients with excellence.",
+                title: t("about.vision.title"),
+                content: t("about.vision.content"),
               },
               {
-                title: "Our Mission",
-                content:
-                  "Provide technical service companies with a simple, reliable, secure platform for real-time field operations management.",
+                title: t("about.mission.title"),
+                content: t("about.mission.content"),
               },
             ].map((item, idx) => (
               <ScrollReveal key={idx} delay={idx * 0.1}>
@@ -1028,9 +1033,11 @@ const AboutPage = () => {
 };
 
 /* =========================================
-   CONTACT PAGE (CORRIGÉ - NO REFRESH)
+   CONTACT PAGE
 ========================================= */
 const ContactPage = () => {
+  const { language } = useLanguage();
+  const { t } = useTranslation(language);
   useScrollAnimations();
 
   const [formData, setFormData] = useState({
@@ -1046,22 +1053,28 @@ const ContactPage = () => {
   const [status, setStatus] = useState({ type: "", message: "" });
   const [errors, setErrors] = useState({});
 
-  // --- VALIDATION ---
+  const CONTACT_INFO = [
+    { icon: Mail, label: t("contact.info.email"), value: "chaouche.aghiles@gmail.com" },
+    { icon: Phone, label: t("contact.info.phone"), value: "+1 (438) 788-9596" },
+    { icon: MapPin, label: t("contact.info.location"), value: t("contact.info.locationValue") },
+  ];
+
+  const TRUST_ITEMS = t("contact.trust");
+
   const validateField = (name, value) => {
     switch (name) {
       case "email":
-        return EMAIL_REGEX.test(value) ? "" : "Invalid email format";
+        return EMAIL_REGEX.test(value) ? "" : t("contact.form.validation.emailInvalid");
       case "phone":
-        return PHONE_REGEX.test(value) ? "" : "Invalid phone format";
+        return PHONE_REGEX.test(value) ? "" : t("contact.form.validation.phoneInvalid");
       case "name":
       case "company":
-        return value.trim().length >= 2 ? "" : "Must be at least 2 characters";
+        return value.trim().length >= 2 ? "" : t("contact.form.validation.tooShort");
       default:
         return "";
     }
   };
 
-  // --- HANDLERS ---
   const handleChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
     const newValue = type === "checkbox" ? checked : value;
@@ -1076,7 +1089,6 @@ const ContactPage = () => {
 
   const handleSubmit = useCallback(
     (e) => {
-      // CRITIQUE: Empêcher TOUS les comportements par défaut
       e.preventDefault();
       e.stopPropagation();
 
@@ -1093,23 +1105,22 @@ const ContactPage = () => {
       });
 
       if (!formData.acceptContact) {
-        setStatus({ type: "error", message: "Please accept to be contacted." });
+        setStatus({ type: "error", message: t("contact.form.acceptError") });
         return;
       }
 
       if (Object.keys(newErrors).length > 0) {
         setErrors(newErrors);
-        setStatus({ type: "error", message: "Please fix the errors above." });
+        setStatus({ type: "error", message: t("contact.form.error") });
         return;
       }
 
-      setStatus({ type: "loading", message: "Sending..." });
+      setStatus({ type: "loading", message: t("contact.form.sending") });
 
-      // Simulation d'appel API
       setTimeout(() => {
         setStatus({
           type: "success",
-          message: "Thank you! We'll contact you within 24 hours.",
+          message: t("contact.form.success"),
         });
         setFormData({
           name: "",
@@ -1124,13 +1135,11 @@ const ContactPage = () => {
         setErrors({});
       }, 1000);
 
-      // Retourner false pour plus de sécurité
       return false;
     },
-    [formData]
+    [formData, t]
   );
 
-  // Gestionnaire de reset sécurisé
   const handleReset = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -1159,17 +1168,17 @@ const ContactPage = () => {
           <ScrollReveal>
             <div className="section-header">
               <h1 id="contact-title" className="page-title">
-                Get In Touch
+                {t("contact.title")}
               </h1>
-              <p className="page-subtitle">Let's discuss your project</p>
+              <p className="page-subtitle">{t("contact.subtitle")}</p>
             </div>
           </ScrollReveal>
 
           <div className="contact-grid">
             <ScrollReveal delay={0.1}>
               <TiltCard className="contact-info">
-                <h2>Contact Information</h2>
-                <p>Reach out for a personalized demo of ServiceOps.</p>
+                <h2>{t("contact.info.title")}</h2>
+                <p>{t("contact.info.description")}</p>
 
                 <div className="contact-details">
                   {CONTACT_INFO.map((item, idx) => (
@@ -1205,7 +1214,7 @@ const ContactPage = () => {
                 >
                   <div className="form-row">
                     <div className="form-group">
-                      <label htmlFor="name">Full Name *</label>
+                      <label htmlFor="name">{t("contact.form.name")} {t("required")}</label>
                       <input
                         id="name"
                         type="text"
@@ -1213,7 +1222,7 @@ const ContactPage = () => {
                         value={formData.name}
                         onChange={handleChange}
                         required
-                        placeholder="John Doe"
+                        placeholder={t("contact.form.namePlaceholder")}
                         aria-invalid={errors.name ? "true" : "false"}
                         aria-describedby={
                           errors.name ? "name-error" : undefined
@@ -1231,7 +1240,7 @@ const ContactPage = () => {
                     </div>
 
                     <div className="form-group">
-                      <label htmlFor="company">Company *</label>
+                      <label htmlFor="company">{t("contact.form.company")} {t("required")}</label>
                       <input
                         id="company"
                         type="text"
@@ -1239,7 +1248,7 @@ const ContactPage = () => {
                         value={formData.company}
                         onChange={handleChange}
                         required
-                        placeholder="Your Company"
+                        placeholder={t("contact.form.companyPlaceholder")}
                         aria-invalid={errors.company ? "true" : "false"}
                         aria-describedby={
                           errors.company ? "company-error" : undefined
@@ -1259,7 +1268,7 @@ const ContactPage = () => {
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label htmlFor="email">Email *</label>
+                      <label htmlFor="email">{t("contact.form.email")} {t("required")}</label>
                       <input
                         id="email"
                         type="email"
@@ -1267,7 +1276,7 @@ const ContactPage = () => {
                         value={formData.email}
                         onChange={handleChange}
                         required
-                        placeholder="john@company.ca"
+                        placeholder={t("contact.form.emailPlaceholder")}
                         autoComplete="email"
                         aria-invalid={errors.email ? "true" : "false"}
                         aria-describedby={
@@ -1286,7 +1295,7 @@ const ContactPage = () => {
                     </div>
 
                     <div className="form-group">
-                      <label htmlFor="phone">Phone *</label>
+                      <label htmlFor="phone">{t("contact.form.phone")} {t("required")}</label>
                       <input
                         id="phone"
                         type="tel"
@@ -1294,7 +1303,7 @@ const ContactPage = () => {
                         value={formData.phone}
                         onChange={handleChange}
                         required
-                        placeholder="(514) 123-4567"
+                        placeholder={t("contact.form.phonePlaceholder")}
                         autoComplete="tel"
                         aria-invalid={errors.phone ? "true" : "false"}
                         aria-describedby={
@@ -1314,7 +1323,7 @@ const ContactPage = () => {
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="sector">Industry *</label>
+                    <label htmlFor="sector">{t("contact.form.sector")} {t("required")}</label>
                     <select
                       id="sector"
                       name="sector"
@@ -1322,24 +1331,24 @@ const ContactPage = () => {
                       onChange={handleChange}
                       required
                     >
-                      <option value="">Select Industry</option>
-                      <option value="hvac">HVAC</option>
-                      <option value="plumbing">Plumbing</option>
-                      <option value="electrical">Electrical</option>
-                      <option value="multi">Multi-technical</option>
-                      <option value="other">Other</option>
+                      <option value="">{t("contact.form.selectIndustry")}</option>
+                      <option value="hvac">{t("contact.form.industries.hvac")}</option>
+                      <option value="plumbing">{t("contact.form.industries.plumbing")}</option>
+                      <option value="electrical">{t("contact.form.industries.electrical")}</option>
+                      <option value="multi">{t("contact.form.industries.multi")}</option>
+                      <option value="other">{t("contact.form.industries.other")}</option>
                     </select>
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="message">Message</label>
+                    <label htmlFor="message">{t("contact.form.message")}</label>
                     <textarea
                       id="message"
                       name="message"
                       value={formData.message}
                       onChange={handleChange}
                       rows="4"
-                      placeholder="Tell us about your needs..."
+                      placeholder={t("contact.form.messagePlaceholder")}
                     />
                   </div>
 
@@ -1352,7 +1361,7 @@ const ContactPage = () => {
                         checked={formData.requestDemo}
                         onChange={handleChange}
                       />
-                      <span>I want a free demonstration</span>
+                      <span>{t("contact.form.requestDemo")}</span>
                     </label>
 
                     <label className="checkbox-label" htmlFor="acceptContact">
@@ -1364,7 +1373,7 @@ const ContactPage = () => {
                         onChange={handleChange}
                         required
                       />
-                      <span>I accept to be contacted *</span>
+                      <span>{t("contact.form.acceptContact")} {t("required")}</span>
                     </label>
                   </div>
 
@@ -1382,21 +1391,21 @@ const ContactPage = () => {
                     <MagneticButton
                       type="submit"
                       className="btn btn-primary full interactive"
-                      ariaLabel="Send message"
+                      ariaLabel={t("contact.form.sendButton")}
                       disabled={status.type === "loading"}
                     >
                       <Send size={20} aria-hidden="true" />
-                      <span>Send Message</span>
+                      <span>{t("contact.form.sendButton")}</span>
                       <ArrowRight size={18} aria-hidden="true" />
                     </MagneticButton>
 
                     <MagneticButton
                       type="button"
                       className="btn btn-secondary full interactive"
-                      ariaLabel="Reset form"
+                      ariaLabel={t("contact.form.resetButton")}
                       onClick={handleReset}
                     >
-                      <span>Reset</span>
+                      <span>{t("contact.form.resetButton")}</span>
                     </MagneticButton>
                   </div>
                 </form>
@@ -1414,6 +1423,8 @@ const ContactPage = () => {
 ========================================= */
 const NotFoundPage = () => {
   const navigate = useNavigate();
+  const { language } = useLanguage();
+  const { t } = useTranslation(language);
 
   const handleGoHome = useCallback((e) => {
     e.preventDefault();
@@ -1425,15 +1436,15 @@ const NotFoundPage = () => {
       <section className="section not-found-section">
         <div className="container">
           <div className="not-found-content">
-            <h1 className="not-found-title">404</h1>
-            <h2>Page Not Found</h2>
-            <p>The page you're looking for doesn't exist or has been moved.</p>
+            <h1 className="not-found-title">{t("notFound.title")}</h1>
+            <h2>{t("notFound.subtitle")}</h2>
+            <p>{t("notFound.description")}</p>
             <MagneticButton
               onClick={handleGoHome}
               className="btn btn-primary interactive"
-              ariaLabel="Go back to home"
+              ariaLabel={t("notFound.button")}
             >
-              <span>Back to Home</span>
+              <span>{t("notFound.button")}</span>
               <ArrowRight size={18} aria-hidden="true" />
             </MagneticButton>
           </div>
@@ -1448,6 +1459,8 @@ const NotFoundPage = () => {
 ========================================= */
 const Footer = memo(() => {
   const year = new Date().getFullYear();
+  const { language } = useLanguage();
+  const { t } = useTranslation(language);
 
   return (
     <footer className="footer" role="contentinfo">
@@ -1455,58 +1468,58 @@ const Footer = memo(() => {
         <div className="footer-grid">
           <div className="footer-col">
             <h3>ServiceOps</h3>
-            <p>Digital solution for field technicians across Canada.</p>
+            <p>{t("footer.description")}</p>
             <p className="footer-copyright">
               © {year} Aghiles CHAOUCHE
               <br />
-              Self-Employed - Canada
+              {t("footer.copyright")}
             </p>
           </div>
 
           <div className="footer-col">
-            <h4>Navigation</h4>
+            <h4>{t("footer.navigation")}</h4>
             <ul role="list">
               <li>
-                <Link to="/">Home</Link>
+                <Link to="/">{t("nav.home")}</Link>
               </li>
               <li>
-                <Link to="/about">About</Link>
+                <Link to="/about">{t("nav.about")}</Link>
               </li>
               <li>
-                <Link to="/contact">Contact</Link>
+                <Link to="/contact">{t("nav.contact")}</Link>
               </li>
             </ul>
           </div>
 
           <div className="footer-col">
-            <h4>Contact</h4>
+            <h4>{t("footer.contactTitle")}</h4>
             <p>
-              Email:{" "}
+              {t("footer.email")}:{" "}
               <a href="mailto:chaouche.aghiles@gmail.com">chaouche.aghiles@gmail.com</a>
               <br />
-              Phone: +1 (438) 788-9596
+              {t("footer.phone")}: +1 (438) 788-9596
               <br />
-              Hosting: Canada
+              {t("footer.hosting")}
             </p>
           </div>
 
           <div className="footer-col">
-            <h4>Compliance</h4>
+            <h4>{t("footer.compliance")}</h4>
             <div className="footer-badges">
               <div className="footer-badge">
                 <Shield size={16} aria-hidden="true" />
-                <span>Privacy</span>
+                <span>{t("footer.badges.privacy")}</span>
               </div>
               <div className="footer-badge">
                 <Lock size={16} aria-hidden="true" />
-                <span>SSL</span>
+                <span>{t("footer.badges.ssl")}</span>
               </div>
             </div>
           </div>
         </div>
 
         <div className="footer-bottom">
-          <p>All rights reserved - ServiceOps by Aghiles CHAOUCHE</p>
+          <p>{t("footer.rights")}</p>
         </div>
       </div>
     </footer>
@@ -1569,6 +1582,9 @@ PageTransitionContainer.propTypes = {
    SHELL
 ========================================= */
 function Shell() {
+  const { language } = useLanguage();
+  const { t } = useTranslation(language);
+
   return (
     <>
       <SkipLink />
@@ -1592,14 +1608,25 @@ function Shell() {
 /* =========================================
    APP
 ========================================= */
-export default function App() {
+function AppContent() {
+  const { language } = useLanguage();
+  const { t } = useTranslation(language);
+
   return (
-    <ErrorBoundary>
+    <ErrorBoundary t={t}>
       <ThemeProvider>
         <Router>
           <Shell />
         </Router>
       </ThemeProvider>
     </ErrorBoundary>
+  );
+}
+
+export default function App() {
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
   );
 }
