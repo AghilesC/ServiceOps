@@ -1,4 +1,4 @@
-// useScrollAnimations.js — GSAP + ScrollTrigger + Accessibilité (safe forms)
+// useScrollAnimations.js — CORRIGÉ - NO RE-RENDER sur interaction formulaire
 import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -19,7 +19,6 @@ const isFormElementFocused = () => {
 };
 
 export const useScrollAnimations = () => {
-  // Ref pour empêcher double-init en dev (React StrictMode)
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -30,7 +29,7 @@ export const useScrollAnimations = () => {
       "(prefers-reduced-motion: reduce)"
     ).matches;
 
-    // === LENIS SYNC (avec cleanup) ===
+    // === LENIS SYNC ===
     let offLenis = null;
     if (window.lenis && typeof window.lenis.on === "function") {
       const onLenis = () => ScrollTrigger.update();
@@ -38,8 +37,7 @@ export const useScrollAnimations = () => {
       offLenis = () => window.lenis.off("scroll", onLenis);
     }
 
-    // === Refresh stable sans window 'load' ===
-    // rAF + timeout pour laisser le layout se stabiliser
+    // === Refresh stable ===
     const refreshOnce = () => {
       requestAnimationFrame(() => {
         setTimeout(() => {
@@ -49,13 +47,10 @@ export const useScrollAnimations = () => {
     };
     refreshOnce();
 
-    // ===============================
-    // SECTION PINNÉE (data-pin)
-    // ===============================
+    // === SECTION PINNÉE ===
     let pinTrigger = null;
     if (!prefersReduced) {
       const track = document.querySelector("[data-pin]");
-      // On évite de pinner si la section contient des champs de formulaire
       if (track && !containsFormControls(track)) {
         const steps = gsap.utils.toArray(".pin-step");
         const visuals = gsap.utils.toArray(".pin-visual-item");
@@ -95,7 +90,6 @@ export const useScrollAnimations = () => {
           pin: true,
           pinSpacing: true,
           scrub: 0.5,
-          // ⚠️ Ne pas déranger l’UI si un champ est focus
           onUpdate: (self) => {
             if (isFormElementFocused()) return;
             const idx = Math.min(
@@ -109,15 +103,12 @@ export const useScrollAnimations = () => {
       }
     }
 
-    // ===============================
-    // PARALLAX
-    // ===============================
+    // === PARALLAX ===
     const parallaxTriggers = [];
     if (!prefersReduced) {
       const parallaxEls = gsap.utils.toArray("[data-parallax]");
 
       parallaxEls.forEach((el) => {
-        // Skip si l’élément (ou ses enfants) contient des champs de formulaire
         if (containsFormControls(el)) return;
 
         const speed = parseFloat(el.getAttribute("data-speed") || "0.2");
@@ -132,10 +123,8 @@ export const useScrollAnimations = () => {
               start: "top bottom",
               end: "bottom top",
               scrub: true,
-              // ⚠️ Si saisie en cours, ne pas rafraîchir la position
               onUpdate: () => {
                 if (isFormElementFocused()) {
-                  // fige la valeur courante en “overwriting” sans recalcul
                   gsap.killTweensOf(el);
                 }
               },
@@ -146,28 +135,18 @@ export const useScrollAnimations = () => {
       });
     }
 
-    // ===============================
-    // CLEANUP
-    // ===============================
+    // === CLEANUP ===
     return () => {
-      // Empêche ré-init en cas d’unmount/mount (HMR/StrictMode)
       startedRef.current = false;
-
-      // Kill tous les ScrollTriggers créés par ce hook
       ScrollTrigger.getAll().forEach((t) => t.kill());
-
-      // Kill tweens potentiels
       gsap.globalTimeline.clear();
-
-      // Detach Lenis listener
       if (typeof offLenis === "function") offLenis();
     };
-  }, []);
+  }, []); // ✅ Dépendances vides - s'exécute une seule fois
 };
 
 /* =========================
-   Hooks utilitaires GSAP
-   (inchangés, mais avec kill propre)
+   Hooks utilitaires GSAP (CORRIGÉS)
 ========================= */
 
 const useAnimationConfig = (options = {}) => {
@@ -185,11 +164,28 @@ const useAnimationConfig = (options = {}) => {
   };
 };
 
+// 🔥 CORRECTION : Utiliser un objet JSON stable comme clé de dépendance
+const useStableOptions = (options) => {
+  const optionsRef = useRef(options);
+  const stableKeyRef = useRef(JSON.stringify(options));
+
+  const currentKey = JSON.stringify(options);
+  
+  if (currentKey !== stableKeyRef.current) {
+    optionsRef.current = options;
+    stableKeyRef.current = currentKey;
+  }
+
+  return optionsRef.current;
+};
+
 export const useFadeIn = (ref, options = {}) => {
+  const stableOptions = useStableOptions(options);
+
   useEffect(() => {
     if (!ref.current) return;
-    const config = useAnimationConfig(options);
-    const { distance = 40 } = options;
+    const config = useAnimationConfig(stableOptions);
+    const { distance = 40 } = stableOptions;
 
     const anim = gsap.fromTo(
       ref.current,
@@ -218,13 +214,15 @@ export const useFadeIn = (ref, options = {}) => {
       st.kill();
       anim.kill();
     };
-  }, [ref, options]);
+  }, [ref, stableOptions]); // ✅ stableOptions ne change que si les valeurs changent vraiment
 };
 
 export const useScaleIn = (ref, options = {}) => {
+  const stableOptions = useStableOptions(options);
+
   useEffect(() => {
     if (!ref.current) return;
-    const config = useAnimationConfig(options);
+    const config = useAnimationConfig(stableOptions);
 
     const anim = gsap.fromTo(
       ref.current,
@@ -253,14 +251,16 @@ export const useScaleIn = (ref, options = {}) => {
       st.kill();
       anim.kill();
     };
-  }, [ref, options]);
+  }, [ref, stableOptions]);
 };
 
 export const useSlideIn = (ref, options = {}) => {
+  const stableOptions = useStableOptions(options);
+
   useEffect(() => {
     if (!ref.current) return;
-    const config = useAnimationConfig(options);
-    const { direction = "up", distance = 60 } = options;
+    const config = useAnimationConfig(stableOptions);
+    const { direction = "up", distance = 60 } = stableOptions;
 
     const getTransform = () => {
       if (config.prefersReduced) return { x: 0, y: 0 };
@@ -308,13 +308,15 @@ export const useSlideIn = (ref, options = {}) => {
       st.kill();
       anim.kill();
     };
-  }, [ref, options]);
+  }, [ref, stableOptions]);
 };
 
 export const useRotateIn = (ref, options = {}) => {
+  const stableOptions = useStableOptions(options);
+
   useEffect(() => {
     if (!ref.current) return;
-    const config = useAnimationConfig(options);
+    const config = useAnimationConfig(stableOptions);
 
     const anim = gsap.fromTo(
       ref.current,
@@ -347,14 +349,16 @@ export const useRotateIn = (ref, options = {}) => {
       st.kill();
       anim.kill();
     };
-  }, [ref, options]);
+  }, [ref, stableOptions]);
 };
 
 export const useStaggerReveal = (containerRef, options = {}) => {
+  const stableOptions = useStableOptions(options);
+
   useEffect(() => {
     if (!containerRef.current) return;
-    const config = useAnimationConfig(options);
-    const { stagger = 0.1, childSelector = "> *" } = options;
+    const config = useAnimationConfig(stableOptions);
+    const { stagger = 0.1, childSelector = "> *" } = stableOptions;
 
     const children = containerRef.current.querySelectorAll(childSelector);
     if (!children.length) return;
@@ -386,5 +390,5 @@ export const useStaggerReveal = (containerRef, options = {}) => {
       st.kill();
       anim.kill();
     };
-  }, [containerRef, options]);
+  }, [containerRef, stableOptions]);
 };
