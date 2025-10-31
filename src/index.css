@@ -918,6 +918,42 @@ a:not([class]):focus-visible {
   margin: 0 auto;
 }
 
+/* ====================================================================== */
+/* PHONE MOCKUP SMALL (TÉLÉPHONE RÉDUIT)                                */
+/* ====================================================================== */
+
+.phone-mockup-small {
+  transform: scale(0.65);
+  transform-origin: center;
+}
+
+@media (max-width: 1024px) {
+  .phone-mockup-small {
+    transform: scale(0.55);
+  }
+}
+
+@media (max-width: 768px) {
+  .phone-mockup-small {
+    transform: scale(0.5);
+  }
+}
+
+@media (max-width: 480px) {
+  .phone-mockup-small {
+    transform: scale(0.45);
+  }
+}
+
+/* Désactive la transformation si l'utilisateur préfère moins d'animations */
+@media (prefers-reduced-motion: reduce) {
+  .phone-mockup-small {
+    transform: scale(0.7);
+  }
+}
+
+/* ====================================================================== */
+
 .phone-frame {
   width: 100%;
   aspect-ratio: 9/19;
