@@ -511,13 +511,13 @@ a:not([class]):focus-visible {
 .theme-toggle:focus-visible {
   background: var(--primary);
   color: white;
-  transform: rotate(180deg);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .theme-toggle:hover,
   .theme-toggle:focus-visible {
-    transform: none;
+    background: var(--primary);
+    color: white;
   }
 }
 
@@ -2048,3 +2048,103 @@ button {
     outline-width: 3px;
   }
 }
+
+/* ====================================================================== */
+/* BOUTON DE LANGUE - Styles Multilingues                                */
+/* ====================================================================== */
+
+/* Bouton de langue avec badge */
+.theme-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.lang-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  background: var(--primary);
+  color: white;
+  font-size: 0.625rem;
+  font-weight: 800;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1;
+  letter-spacing: 0.05em;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+  pointer-events: none;
+  transition: all var(--t-fast);
+}
+
+[data-theme="dark"] .lang-badge {
+  background: var(--primary-light);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.5);
+}
+
+.theme-toggle:hover .lang-badge,
+.theme-toggle:focus-visible .lang-badge {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.6);
+}
+
+/* Animation de transition de langue */
+@keyframes lang-fade {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+[data-lang-changing] * {
+  animation: lang-fade 0.3s ease-in-out;
+}
+
+/* Accessibilité - Focus amélioré pour le bouton de langue */
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+/* Responsive - Mobile */
+@media (max-width: 768px) {
+  .navbar-actions {
+    gap: var(--space-2);
+  }
+
+  .theme-toggle {
+    width: 36px;
+    height: 36px;
+  }
+
+  .lang-badge {
+    font-size: 0.5rem;
+    padding: 1px 3px;
+  }
+}
+
+/* Support pour les animations réduites */
+@media (prefers-reduced-motion: reduce) {
+  .lang-badge {
+    transition: none;
+  }
+
+  [data-lang-changing] * {
+    animation: none;
+  }
+
+  .theme-toggle:hover .lang-badge,
+  .theme-toggle:focus-visible .lang-badge {
+    transform: none;
+  }
+}
+
+/* ====================================================================== */
+/* FIN DU FICHIER INDEX.CSS                                               */
+/* ====================================================================== */
