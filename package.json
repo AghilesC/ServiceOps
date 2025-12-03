@@ -1,7 +1,7 @@
 {
-  "name": "serviceops",
+  "name": "workora",
   "version": "1.0.0",
-  "description": "ServiceOps - Solution de digitalisation pour techniciens sur site par Aghiles CHAOUCHE",
+  "description": "Workora - Solution de digitalisation pour techniciens sur site par Aghiles CHAOUCHE",
   "author": "Aghiles CHAOUCHE",
   "license": "PROPRIETARY",
   "type": "module",
@@ -38,7 +38,7 @@
     "web-vitals": "^5.1.0"
   },
   "keywords": [
-    "serviceops",
+    "workora",
     "digitalisation",
     "intervention",
     "terrain",

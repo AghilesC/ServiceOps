@@ -18,6 +18,16 @@ const isFormElementFocused = () => {
   return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
 };
 
+// Throttle pour éviter trop de rafraîchissements
+let refreshTimeout = null;
+const throttledRefresh = () => {
+  if (refreshTimeout) return;
+  refreshTimeout = setTimeout(() => {
+    ScrollTrigger.refresh();
+    refreshTimeout = null;
+  }, 100);
+};
+
 export const useScrollAnimations = () => {
   const startedRef = useRef(false);
 
@@ -37,15 +47,25 @@ export const useScrollAnimations = () => {
       offLenis = () => window.lenis.off("scroll", onLenis);
     }
 
-    // === Refresh stable ===
+    // === Refresh stable (optimisé) ===
     const refreshOnce = () => {
       requestAnimationFrame(() => {
-        setTimeout(() => {
+        requestAnimationFrame(() => {
           ScrollTrigger.refresh();
-        }, 60);
+        });
       });
     };
     refreshOnce();
+    
+    // Refresh optimisé sur resize
+    let resizeTimeout;
+    const handleResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        throttledRefresh();
+      }, 150);
+    };
+    window.addEventListener("resize", handleResize, { passive: true });
 
     // === SECTION PINNÉE ===
     let pinTrigger = null;
@@ -138,6 +158,12 @@ export const useScrollAnimations = () => {
     // === CLEANUP ===
     return () => {
       startedRef.current = false;
+      window.removeEventListener("resize", handleResize);
+      clearTimeout(resizeTimeout);
+      if (refreshTimeout) {
+        clearTimeout(refreshTimeout);
+        refreshTimeout = null;
+      }
       ScrollTrigger.getAll().forEach((t) => t.kill());
       gsap.globalTimeline.clear();
       if (typeof offLenis === "function") offLenis();
@@ -150,7 +176,7 @@ export const useScrollAnimations = () => {
 ========================= */
 
 const useAnimationConfig = (options = {}) => {
-  const { delay = 0, threshold = 0.85, duration = 0.8, once = true } = options;
+  const { delay = 0, threshold = 0.4, duration = 0.3, once = true } = options;
   const prefersReduced = window.matchMedia(
     "(prefers-reduced-motion: reduce)"
   ).matches;
@@ -185,7 +211,16 @@ export const useFadeIn = (ref, options = {}) => {
   useEffect(() => {
     if (!ref.current) return;
     const config = useAnimationConfig(stableOptions);
-    const { distance = 40 } = stableOptions;
+    const { distance = 20 } = stableOptions;
+
+    // Vérifier si l'élément est déjà visible au chargement
+    const checkInitialVisibility = () => {
+      if (!ref.current) return false;
+      const rect = ref.current.getBoundingClientRect();
+      const windowHeight = window.innerHeight || document.documentElement.clientHeight;
+      // Vérifier si l'élément est déjà dans la zone visible (85% du viewport)
+      return rect.top < windowHeight * 0.85;
+    };
 
     const anim = gsap.fromTo(
       ref.current,
@@ -195,22 +230,54 @@ export const useFadeIn = (ref, options = {}) => {
         y: 0,
         duration: config.duration,
         delay: config.delay,
-        ease: "power2.out",
+        ease: "power3.out", // Plus fluide que power2.out
         paused: true,
       }
     );
 
+    // Fonction pour révéler l'élément s'il est déjà visible
+    const revealIfVisible = () => {
+      if (checkInitialVisibility() && config.once && anim.progress() < 1) {
+        anim.progress(1);
+      }
+    };
+
+    // Vérifier immédiatement et avec plusieurs délais pour capturer les éléments qui se chargent à différents moments
+    revealIfVisible();
+    setTimeout(revealIfVisible, 50);
+    setTimeout(revealIfVisible, 150);
+    setTimeout(revealIfVisible, 300);
+    setTimeout(revealIfVisible, 500);
+    
+    // Fallback : forcer l'affichage après 2 secondes si l'animation ne s'est pas déclenchée
+    const fallbackTimeout = setTimeout(() => {
+      if (anim.progress() < 0.1 && ref.current) {
+        // Si l'animation n'a pas démarré, forcer l'affichage
+        anim.progress(1);
+      }
+    }, 2000);
+
     const st = ScrollTrigger.create({
       trigger: ref.current,
-      start: `top ${Math.floor(config.threshold * 100)}%`,
+      start: "top 85%",
       once: config.once,
-      onEnter: () => anim.play(),
+      onEnter: () => {
+        if (anim.progress() < 1) anim.play();
+      },
+      onEnterBack: () => {
+        if (!config.once && anim.progress() < 1) anim.play();
+      },
       onLeaveBack: () => {
         if (!config.once) anim.reverse();
+      },
+      onRefresh: () => {
+        // Vérifier à nouveau après refresh
+        revealIfVisible();
       },
     });
 
     return () => {
+      clearTimeout(fallbackTimeout);
       st.kill();
       anim.kill();
     };
@@ -224,6 +291,14 @@ export const useScaleIn = (ref, options = {}) => {
     if (!ref.current) return;
     const config = useAnimationConfig(stableOptions);
 
+    // Vérifier si l'élément est déjà visible au chargement
+    const checkInitialVisibility = () => {
+      if (!ref.current) return false;
+      const rect = ref.current.getBoundingClientRect();
+      const windowHeight = window.innerHeight || document.documentElement.clientHeight;
+      return rect.top < windowHeight * 0.85;
+    };
+
     const anim = gsap.fromTo(
       ref.current,
       { opacity: 0, scale: config.prefersReduced ? 1 : 0.9 },
@@ -232,22 +307,54 @@ export const useScaleIn = (ref, options = {}) => {
         scale: 1,
         duration: config.duration,
         delay: config.delay,
-        ease: "back.out(1.2)",
+        ease: "elastic.out(1, 0.5)", // Plus fluide et dynamique
         paused: true,
       }
     );
 
+    // Fonction pour révéler l'élément s'il est déjà visible
+    const revealIfVisible = () => {
+      if (checkInitialVisibility() && config.once && anim.progress() < 1) {
+        anim.progress(1);
+      }
+    };
+
+    // Vérifier immédiatement et avec plusieurs délais pour capturer les éléments qui se chargent à différents moments
+    revealIfVisible();
+    setTimeout(revealIfVisible, 50);
+    setTimeout(revealIfVisible, 150);
+    setTimeout(revealIfVisible, 300);
+    setTimeout(revealIfVisible, 500);
+    
+    // Fallback : forcer l'affichage après 2 secondes si l'animation ne s'est pas déclenchée
+    const fallbackTimeout = setTimeout(() => {
+      if (anim.progress() < 0.1 && ref.current) {
+        // Si l'animation n'a pas démarré, forcer l'affichage
+        anim.progress(1);
+      }
+    }, 2000);
+
     const st = ScrollTrigger.create({
       trigger: ref.current,
-      start: `top ${Math.floor(config.threshold * 100)}%`,
+      start: "top 85%",
       once: config.once,
-      onEnter: () => anim.play(),
+      onEnter: () => {
+        if (anim.progress() < 1) anim.play();
+      },
+      onEnterBack: () => {
+        if (!config.once && anim.progress() < 1) anim.play();
+      },
       onLeaveBack: () => {
         if (!config.once) anim.reverse();
+      },
+      onRefresh: () => {
+        // Vérifier à nouveau après refresh
+        revealIfVisible();
       },
     });
 
     return () => {
+      clearTimeout(fallbackTimeout);
       st.kill();
       anim.kill();
     };
@@ -260,7 +367,15 @@ export const useSlideIn = (ref, options = {}) => {
   useEffect(() => {
     if (!ref.current) return;
     const config = useAnimationConfig(stableOptions);
-    const { direction = "up", distance = 60 } = stableOptions;
+    const { direction = "up", distance = 30 } = stableOptions;
+
+    // Vérifier si l'élément est déjà visible au chargement
+    const checkInitialVisibility = () => {
+      if (!ref.current) return false;
+      const rect = ref.current.getBoundingClientRect();
+      const windowHeight = window.innerHeight || document.documentElement.clientHeight;
+      return rect.top < windowHeight * 0.85;
+    };
 
     const getTransform = () => {
       if (config.prefersReduced) return { x: 0, y: 0 };
@@ -289,22 +404,54 @@ export const useSlideIn = (ref, options = {}) => {
         y: 0,
         duration: config.duration,
         delay: config.delay,
-        ease: "power3.out",
+        ease: "power4.out", // Plus fluide pour les slides
         paused: true,
       }
     );
 
+    // Fonction pour révéler l'élément s'il est déjà visible
+    const revealIfVisible = () => {
+      if (checkInitialVisibility() && config.once && anim.progress() < 1) {
+        anim.progress(1);
+      }
+    };
+
+    // Vérifier immédiatement et avec plusieurs délais pour capturer les éléments qui se chargent à différents moments
+    revealIfVisible();
+    setTimeout(revealIfVisible, 50);
+    setTimeout(revealIfVisible, 150);
+    setTimeout(revealIfVisible, 300);
+    setTimeout(revealIfVisible, 500);
+    
+    // Fallback : forcer l'affichage après 2 secondes si l'animation ne s'est pas déclenchée
+    const fallbackTimeout = setTimeout(() => {
+      if (anim.progress() < 0.1 && ref.current) {
+        // Si l'animation n'a pas démarré, forcer l'affichage
+        anim.progress(1);
+      }
+    }, 2000);
+
     const st = ScrollTrigger.create({
       trigger: ref.current,
-      start: `top ${Math.floor(config.threshold * 100)}%`,
+      start: "top 85%",
       once: config.once,
-      onEnter: () => anim.play(),
+      onEnter: () => {
+        if (anim.progress() < 1) anim.play();
+      },
+      onEnterBack: () => {
+        if (!config.once && anim.progress() < 1) anim.play();
+      },
       onLeaveBack: () => {
         if (!config.once) anim.reverse();
+      },
+      onRefresh: () => {
+        // Vérifier à nouveau après refresh
+        revealIfVisible();
       },
     });
 
     return () => {
+      clearTimeout(fallbackTimeout);
       st.kill();
       anim.kill();
     };
@@ -317,6 +464,14 @@ export const useRotateIn = (ref, options = {}) => {
   useEffect(() => {
     if (!ref.current) return;
     const config = useAnimationConfig(stableOptions);
+
+    // Vérifier si l'élément est déjà visible au chargement
+    const checkInitialVisibility = () => {
+      if (!ref.current) return false;
+      const rect = ref.current.getBoundingClientRect();
+      const windowHeight = window.innerHeight || document.documentElement.clientHeight;
+      return rect.top < windowHeight * 0.85;
+    };
 
     const anim = gsap.fromTo(
       ref.current,
@@ -335,17 +490,49 @@ export const useRotateIn = (ref, options = {}) => {
       }
     );
 
+    // Fonction pour révéler l'élément s'il est déjà visible
+    const revealIfVisible = () => {
+      if (checkInitialVisibility() && config.once && anim.progress() < 1) {
+        anim.progress(1);
+      }
+    };
+
+    // Vérifier immédiatement et avec plusieurs délais pour capturer les éléments qui se chargent à différents moments
+    revealIfVisible();
+    setTimeout(revealIfVisible, 50);
+    setTimeout(revealIfVisible, 150);
+    setTimeout(revealIfVisible, 300);
+    setTimeout(revealIfVisible, 500);
+    
+    // Fallback : forcer l'affichage après 2 secondes si l'animation ne s'est pas déclenchée
+    const fallbackTimeout = setTimeout(() => {
+      if (anim.progress() < 0.1 && ref.current) {
+        // Si l'animation n'a pas démarré, forcer l'affichage
+        anim.progress(1);
+      }
+    }, 2000);
+
     const st = ScrollTrigger.create({
       trigger: ref.current,
-      start: `top ${Math.floor(config.threshold * 100)}%`,
+      start: "top 85%",
       once: config.once,
-      onEnter: () => anim.play(),
+      onEnter: () => {
+        if (anim.progress() < 1) anim.play();
+      },
+      onEnterBack: () => {
+        if (!config.once && anim.progress() < 1) anim.play();
+      },
       onLeaveBack: () => {
         if (!config.once) anim.reverse();
+      },
+      onRefresh: () => {
+        // Vérifier à nouveau après refresh
+        revealIfVisible();
       },
     });
 
     return () => {
+      clearTimeout(fallbackTimeout);
       st.kill();
       anim.kill();
     };
@@ -365,7 +552,7 @@ export const useStaggerReveal = (containerRef, options = {}) => {
 
     const anim = gsap.fromTo(
       children,
-      { opacity: 0, y: config.prefersReduced ? 0 : 30 },
+      { opacity: 0, y: config.prefersReduced ? 0 : 15 },
       {
         opacity: 1,
         y: 0,
@@ -378,7 +565,7 @@ export const useStaggerReveal = (containerRef, options = {}) => {
 
     const st = ScrollTrigger.create({
       trigger: containerRef.current,
-      start: `top ${Math.floor(config.threshold * 100)}%`,
+      start: "top 85%",
       once: config.once,
       onEnter: () => anim.play(),
       onLeaveBack: () => {

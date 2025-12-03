@@ -1,0 +1,71 @@
+# Configuration Apache pour ServiceOps
+# Ce fichier active PHP et configure le routage pour React Router
+
+# Activer le module de réécriture
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /ServiceOps/public/
+    
+    # RÉÉCRIRE LES CHEMINS ABSOLUS (/assets/...) vers le bon chemin
+    # Si la requête commence par /assets/, /registerSW.js, /manifest.webmanifest
+    # et qu'on est dans /ServiceOps/public/, réécrire vers le chemin local
+    
+    # Gérer /assets/... (chemins absolus depuis la racine)
+    RewriteCond %{REQUEST_URI} ^/assets/
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^assets/(.*)$ assets/$1 [L]
+    
+    # Gérer /registerSW.js
+    RewriteCond %{REQUEST_URI} ^/registerSW\.js$
+    RewriteCond %{DOCUMENT_ROOT}/ServiceOps/public/registerSW.js -f
+    RewriteRule ^registerSW\.js$ /ServiceOps/public/registerSW.js [L]
+    
+    # Gérer /manifest.webmanifest
+    RewriteCond %{REQUEST_URI} ^/manifest\.webmanifest$
+    RewriteCond %{DOCUMENT_ROOT}/ServiceOps/public/manifest.webmanifest -f
+    RewriteRule ^manifest\.webmanifest$ /ServiceOps/public/manifest.webmanifest [L]
+    
+    # Autoriser l'accès direct aux fichiers PHP (important pour send-email.php)
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteCond %{REQUEST_FILENAME} \.php$
+    RewriteRule ^ - [L]
+    
+    # Autoriser l'accès aux fichiers statiques (images, CSS, JS, etc.)
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+    
+    # Autoriser l'accès au dossier PHPMailer
+    RewriteCond %{REQUEST_URI} ^/ServiceOps/public/PHPMailer-master/
+    RewriteRule ^ - [L]
+    
+    # Rediriger toutes les autres requêtes vers index.html (pour React Router)
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.html [L]
+</IfModule>
+
+# Activer PHP (déjà activé par XAMPP, mais on s'assure que ça fonctionne)
+AddHandler application/x-httpd-php .php
+<IfModule mod_mime.c>
+    AddType application/x-httpd-php .php
+</IfModule>
+
+# Sécurité : Empêcher l'accès direct aux fichiers sensibles
+<FilesMatch "\.(htaccess|htpasswd|ini|log|sh|sql|md)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Headers de sécurité
+<IfModule mod_headers.c>
+    # Autoriser les requêtes CORS depuis n'importe quelle origine (pour le développement)
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type"
+</IfModule>
+
+# Activer la compression (optionnel, améliore les performances)
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json
+</IfModule>
+

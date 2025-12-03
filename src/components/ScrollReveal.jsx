@@ -18,10 +18,10 @@ export const ScrollReveal = memo(
     children,
     type = "fade",
     delay = 0,
-    threshold = 0.85,
-    duration = 0.8,
+    threshold = 0.4,
+    duration = 0.3,
     direction = "up",
-    distance = 40,
+    distance = 20,
     className = "",
     disabled = false,
     once = true,
@@ -97,10 +97,10 @@ ScrollReveal.propTypes = {
 ScrollReveal.defaultProps = {
   type: "fade",
   delay: 0,
-  threshold: 0.85,
-  duration: 0.8,
+  threshold: 0.4,
+  duration: 0.3,
   direction: "up",
-  distance: 40,
+  distance: 20,
   className: "",
   disabled: false,
   once: true,
@@ -113,9 +113,9 @@ export const ScrollRevealGroup = memo(
   ({
     children,
     type = "fade",
-    stagger = 0.1,
-    threshold = 0.85,
-    duration = 0.8,
+    stagger = 0.02,
+    threshold = 0.4,
+    duration = 0.3,
     className = "",
     disabled = false,
   }) => {
@@ -154,9 +154,9 @@ ScrollRevealGroup.propTypes = {
 
 ScrollRevealGroup.defaultProps = {
   type: "fade",
-  stagger: 0.1,
-  threshold: 0.85,
-  duration: 0.8,
+  stagger: 0.02,
+  threshold: 0.4,
+  duration: 0.3,
   className: "",
   disabled: false,
 };
